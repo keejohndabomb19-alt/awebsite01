@@ -600,6 +600,14 @@ export function SlopeGame() {
             -(b.d - distance)
           );
         }
+        for (const c of coins) {
+          c.mesh.position.set(
+            pathX(c.d) + c.lateral,
+            pathY(c.d) + 0.8,
+            -(c.d - distance)
+          );
+          c.mesh.rotation.y += delta * 3;
+        }
 
         const ballWorldX = pathX(distance) + lateralPos;
         const ballWorldY = pathY(distance) + 0.5 + ballHeight;
