@@ -286,18 +286,18 @@ export function SlopeGame() {
 
           // Move segments
           for (let i = segments.length - 1; i >= 0; i--) {
-            segments[i].position.z += moveDistance;
-            if (segments[i].position.z > 10) {
-              scene.remove(segments[i]);
+            segments[i]!.position.z += moveDistance;
+            if (segments[i]!.position.z > 10) {
+              scene.remove(segments[i]!);
               segments.splice(i, 1);
             }
           }
 
           // Move obstacles
           for (let i = obstacles.length - 1; i >= 0; i--) {
-            obstacles[i].position.z += moveDistance;
-            if (obstacles[i].position.z > 10) {
-              scene.remove(obstacles[i]);
+            obstacles[i]!.position.z += moveDistance;
+            if (obstacles[i]!.position.z > 10) {
+              scene.remove(obstacles[i]!);
               obstacles.splice(i, 1);
               obstacleBodies.splice(i, 1);
             }
@@ -306,7 +306,7 @@ export function SlopeGame() {
           // Spawn new segments
           const lastSegmentZ =
             segments.length > 0
-              ? segments[segments.length - 1].position.z
+              ? segments[segments.length - 1]!.position.z
               : 0;
           if (lastSegmentZ < -segmentLength * (visibleSegments - 5)) {
             createSegment(lastSegmentZ - segmentLength);
