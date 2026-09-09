@@ -676,6 +676,12 @@ export function SlopeGame() {
               {gameState.score.toLocaleString()}
             </p>
           </div>
+          <div className="rounded-lg bg-black/40 px-4 py-2 text-center backdrop-blur-sm">
+            <p className="text-xs uppercase tracking-widest text-yellow-400">Coins</p>
+            <p className="font-mono text-3xl font-bold text-yellow-300">
+              {gameState.coins}
+            </p>
+          </div>
           <div className="rounded-lg bg-black/40 px-4 py-2 backdrop-blur-sm">
             <p className="text-xs uppercase tracking-widest text-cyan-400">Speed</p>
             <p className="font-mono text-3xl font-bold text-white">
@@ -691,9 +697,39 @@ export function SlopeGame() {
           </p>
         )}
 
-        <div className="text-center">
+        <div className="space-y-3 text-center">
+          <div className="pointer-events-auto flex justify-center gap-3">
+            {(Object.keys(POWER_UPS) as PowerUp[]).map((p) => {
+              const info = POWER_UPS[p];
+              const active = gameState.timers[p] > 0;
+              const affordable = gameState.coins >= info.cost;
+              return (
+                <button
+                  key={p}
+                  onClick={() => buyRef.current?.(p)}
+                  disabled={!affordable}
+                  style={{ borderColor: info.color }}
+                  className={`min-w-[9rem] rounded-xl border bg-black/50 px-4 py-2 text-left backdrop-blur-sm transition-all ${
+                    affordable ? "hover:scale-105" : "opacity-40"
+                  } ${active ? "ring-2 ring-white/70" : ""}`}
+                >
+                  <p
+                    className="text-sm font-bold"
+                    style={{ color: info.color }}
+                  >
+                    {info.key} · {info.label}
+                  </p>
+                  <p className="font-mono text-xs text-white/70">
+                    {active
+                      ? `${gameState.timers[p].toFixed(1)}s left`
+                      : `${info.cost} coins`}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
           <p className="text-sm text-white/50">
-            Use ← → or A/D to steer • Space to start/restart
+            ← → or A/D to steer • Space to start/restart • 1/2/3 to buy power-ups
           </p>
         </div>
       </div>
