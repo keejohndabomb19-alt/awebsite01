@@ -7,18 +7,54 @@ interface GameState {
   isPlaying: boolean;
   isGameOver: boolean;
   message: string;
+  coins: number;
+  timers: { speed: number; jump: number; shield: number };
 }
 
 type BlockType = "crash" | "slow" | "boost" | "bounce";
+type PowerUp = "speed" | "jump" | "shield";
+
+const POWER_UPS: Record<
+  PowerUp,
+  { cost: number; duration: number; label: string; hint: string; color: string; key: string }
+> = {
+  speed: {
+    cost: 15,
+    duration: 8,
+    label: "Turbo",
+    hint: "Much faster ride",
+    color: "#00ff88",
+    key: "1",
+  },
+  jump: {
+    cost: 12,
+    duration: 12,
+    label: "Long Jump",
+    hint: "Float further off bounces",
+    color: "#aa55ff",
+    key: "2",
+  },
+  shield: {
+    cost: 25,
+    duration: 6,
+    label: "Invincible",
+    hint: "Smash through red blocks",
+    color: "#ffd700",
+    key: "3",
+  },
+};
 
 export function SlopeGame() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const buyRef = useRef<((p: PowerUp) => void) | null>(null);
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     speed: 0,
     isPlaying: false,
     isGameOver: false,
     message: "",
+    coins: 0,
+    timers: { speed: 0, jump: 0, shield: 0 },
   });
 
   useEffect(() => {
@@ -159,9 +195,24 @@ export function SlopeGame() {
         type: BlockType;
         active: boolean;
       }
+      interface Coin {
+        mesh: THREE.Mesh;
+        d: number;
+        lateral: number;
+      }
+
+      const coinGeometry = new THREE.TorusGeometry(0.38, 0.13, 12, 24);
+      const coinMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffd700,
+        emissive: 0xaa7700,
+        emissiveIntensity: 0.9,
+        roughness: 0.25,
+        metalness: 0.9,
+      });
 
       const segments: Seg[] = [];
       const blocks: Block[] = [];
+      const coins: Coin[] = [];
       let spawnDistance = 0;
 
       function pickType(): BlockType {
@@ -225,6 +276,22 @@ export function SlopeGame() {
             blocks.push({ mesh, d, lateral, size, type, active: true });
           }
         }
+
+        // Coins
+        if (d > 20 && Math.random() > 0.55) {
+          const laneWidth = trackWidth / 5;
+          const lane = Math.floor(Math.random() * 5) - 2;
+          const lateral = lane * laneWidth;
+          const clash = blocks.some(
+            (b) => b.d === d && Math.abs(b.lateral - lateral) < 1.2
+          );
+          if (!clash) {
+            const mesh = new THREE.Mesh(coinGeometry, coinMaterial);
+            mesh.castShadow = true;
+            scene.add(mesh);
+            coins.push({ mesh, d, lateral });
+          }
+        }
       }
 
       function buildTrack() {
@@ -253,16 +320,56 @@ export function SlopeGame() {
       let lastTime = performance.now();
       let messageTimer = 0;
 
+      // ---- Coins & power-ups -------------------------------------------
+      const stored = Number(window.localStorage.getItem("slope-coins") ?? "0");
+      let coinCount = Number.isFinite(stored) ? stored : 0;
+      const timers: Record<PowerUp, number> = { speed: 0, jump: 0, shield: 0 };
+
+      function saveCoins() {
+        window.localStorage.setItem("slope-coins", String(coinCount));
+      }
+      saveCoins();
+
       function flash(msg: string) {
         messageTimer = 1.2;
         setGameState((s) => ({ ...s, message: msg }));
       }
+
+      function syncMeta() {
+        setGameState((s) => ({
+          ...s,
+          coins: coinCount,
+          timers: { ...timers },
+        }));
+      }
+      syncMeta();
+
+      function buyPowerUp(p: PowerUp) {
+        const info = POWER_UPS[p];
+        if (coinCount < info.cost) {
+          flash("Not enough coins");
+          syncMeta();
+          return;
+        }
+        coinCount -= info.cost;
+        saveCoins();
+        timers[p] = info.duration;
+        if (p === "shield") {
+          (ball.material as THREE.MeshStandardMaterial).color.set(0xffd700);
+        }
+        flash(`${info.label} activated!`);
+        syncMeta();
+      }
+      buyRef.current = buyPowerUp;
 
       const keys = { left: false, right: false };
 
       function handleKeyDown(e: KeyboardEvent) {
         if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") keys.left = true;
         if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") keys.right = true;
+        if (e.key === "1") buyPowerUp("speed");
+        if (e.key === "2") buyPowerUp("jump");
+        if (e.key === "3") buyPowerUp("shield");
         if (e.key === " ") {
           if (isGameOver) resetGame();
           else if (!isPlaying) startGame();
@@ -312,11 +419,17 @@ export function SlopeGame() {
         lateralVel = 0;
         ballHeight = 0;
         verticalVel = 0;
+        timers.speed = 0;
+        timers.jump = 0;
+        timers.shield = 0;
+        (ball.material as THREE.MeshStandardMaterial).color.set(0x00ffff);
 
         segments.forEach((s) => scene.remove(s.group));
         blocks.forEach((b) => scene.remove(b.mesh));
+        coins.forEach((c) => scene.remove(c.mesh));
         segments.length = 0;
         blocks.length = 0;
+        coins.length = 0;
         buildTrack();
 
         isGameOver = false;
@@ -327,6 +440,8 @@ export function SlopeGame() {
           isPlaying: true,
           isGameOver: false,
           message: "",
+          coins: coinCount,
+          timers: { speed: 0, jump: 0, shield: 0 },
         });
       }
 
@@ -338,10 +453,26 @@ export function SlopeGame() {
         lastTime = now;
 
         if (isPlaying && !isGameOver) {
+          // Power-up timers
+          let expired = false;
+          (Object.keys(timers) as PowerUp[]).forEach((p) => {
+            if (timers[p] > 0) {
+              timers[p] = Math.max(0, timers[p] - delta);
+              if (timers[p] === 0) {
+                expired = true;
+                if (p === "shield") {
+                  (ball.material as THREE.MeshStandardMaterial).color.set(0x00ffff);
+                }
+                flash(`${POWER_UPS[p].label} over`);
+              }
+            }
+          });
+          if (expired) syncMeta();
+
           speedModifier += (0 - speedModifier) * Math.min(1, delta * 0.8);
           currentSpeed = Math.max(
             8,
-            baseSpeed + score * 0.02 + speedModifier
+            baseSpeed + score * 0.02 + speedModifier + (timers.speed > 0 ? 10 : 0)
           );
 
           const moveDistance = currentSpeed * delta;
@@ -365,6 +496,12 @@ export function SlopeGame() {
               blocks.splice(i, 1);
             }
           }
+          for (let i = coins.length - 1; i >= 0; i--) {
+            if (coins[i]!.d - distance < -12) {
+              scene.remove(coins[i]!.mesh);
+              coins.splice(i, 1);
+            }
+          }
 
           // Steering
           const maxSpeed = 12;
@@ -383,13 +520,27 @@ export function SlopeGame() {
           );
 
           // Vertical (bounce) physics
+          const gravity = timers.jump > 0 ? 12 : 26;
           if (ballHeight > 0 || verticalVel > 0) {
-            verticalVel -= 26 * delta;
+            verticalVel -= gravity * delta;
             ballHeight += verticalVel * delta;
             if (ballHeight <= 0) {
               ballHeight = 0;
               verticalVel = 0;
             }
+          }
+
+          // Coin pickups
+          for (let i = coins.length - 1; i >= 0; i--) {
+            const c = coins[i]!;
+            if (Math.abs(c.d - distance) > 0.9) continue;
+            if (Math.abs(c.lateral - lateralPos) > 1) continue;
+            if (ballHeight > 1.4) continue;
+            scene.remove(c.mesh);
+            coins.splice(i, 1);
+            coinCount += 1;
+            saveCoins();
+            syncMeta();
           }
 
           // Collisions
@@ -401,6 +552,12 @@ export function SlopeGame() {
             if (ballHeight > b.size) continue;
 
             if (b.type === "crash") {
+              if (timers.shield > 0) {
+                b.active = false;
+                scene.remove(b.mesh);
+                flash("Smashed!");
+                continue;
+              }
               gameOver();
               break;
             }
@@ -414,7 +571,7 @@ export function SlopeGame() {
               scene.remove(b.mesh);
               flash(blockStyles.boost.label);
             } else {
-              verticalVel = 9;
+              verticalVel = timers.jump > 0 ? 12 : 9;
               b.mesh.scale.y = 0.4;
               flash(blockStyles.bounce.label);
             }
@@ -429,6 +586,8 @@ export function SlopeGame() {
             ...s,
             score: Math.floor(score),
             speed: Math.floor(currentSpeed * 2),
+            coins: coinCount,
+            timers: { ...timers },
           }));
         }
 
@@ -442,6 +601,14 @@ export function SlopeGame() {
             pathY(b.d) + (b.size * b.mesh.scale.y) / 2,
             -(b.d - distance)
           );
+        }
+        for (const c of coins) {
+          c.mesh.position.set(
+            pathX(c.d) + c.lateral,
+            pathY(c.d) + 0.8,
+            -(c.d - distance)
+          );
+          c.mesh.rotation.y += delta * 3;
         }
 
         const ballWorldX = pathX(distance) + lateralPos;
@@ -511,6 +678,12 @@ export function SlopeGame() {
               {gameState.score.toLocaleString()}
             </p>
           </div>
+          <div className="rounded-lg bg-black/40 px-4 py-2 text-center backdrop-blur-sm">
+            <p className="text-xs uppercase tracking-widest text-yellow-400">Coins</p>
+            <p className="font-mono text-3xl font-bold text-yellow-300">
+              {gameState.coins}
+            </p>
+          </div>
           <div className="rounded-lg bg-black/40 px-4 py-2 backdrop-blur-sm">
             <p className="text-xs uppercase tracking-widest text-cyan-400">Speed</p>
             <p className="font-mono text-3xl font-bold text-white">
@@ -526,9 +699,39 @@ export function SlopeGame() {
           </p>
         )}
 
-        <div className="text-center">
+        <div className="space-y-3 text-center">
+          <div className="pointer-events-auto flex justify-center gap-3">
+            {(Object.keys(POWER_UPS) as PowerUp[]).map((p) => {
+              const info = POWER_UPS[p];
+              const active = gameState.timers[p] > 0;
+              const affordable = gameState.coins >= info.cost;
+              return (
+                <button
+                  key={p}
+                  onClick={() => buyRef.current?.(p)}
+                  disabled={!affordable}
+                  style={{ borderColor: info.color }}
+                  className={`min-w-[9rem] rounded-xl border bg-black/50 px-4 py-2 text-left backdrop-blur-sm transition-all ${
+                    affordable ? "hover:scale-105" : "opacity-40"
+                  } ${active ? "ring-2 ring-white/70" : ""}`}
+                >
+                  <p
+                    className="text-sm font-bold"
+                    style={{ color: info.color }}
+                  >
+                    {info.key} · {info.label}
+                  </p>
+                  <p className="font-mono text-xs text-white/70">
+                    {active
+                      ? `${gameState.timers[p].toFixed(1)}s left`
+                      : `${info.cost} coins`}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
           <p className="text-sm text-white/50">
-            Use ← → or A/D to steer • Space to start/restart
+            ← → or A/D to steer • Space to start/restart • 1/2/3 to buy power-ups
           </p>
         </div>
       </div>
@@ -556,6 +759,23 @@ export function SlopeGame() {
               <div className="flex items-center gap-2 text-white/80">
                 <span className="h-3 w-3 rounded-sm bg-[#aa55ff]" /> Purple — bounces you
               </div>
+              <div className="flex items-center gap-2 text-white/80">
+                <span className="h-3 w-3 rounded-full bg-[#ffd700]" /> Gold — collect coins
+              </div>
+            </div>
+            <div className="mx-auto mb-8 max-w-md rounded-xl border border-white/10 bg-white/5 p-4 text-left text-sm">
+              <p className="mb-2 font-bold text-yellow-300">
+                Coin shop — you have {gameState.coins} coins
+              </p>
+              {(Object.keys(POWER_UPS) as PowerUp[]).map((p) => (
+                <p key={p} className="text-white/70">
+                  <span style={{ color: POWER_UPS[p].color }}>
+                    Press {POWER_UPS[p].key} — {POWER_UPS[p].label}
+                  </span>{" "}
+                  · {POWER_UPS[p].cost} coins · {POWER_UPS[p].duration}s ·{" "}
+                  {POWER_UPS[p].hint}
+                </p>
+              ))}
             </div>
             <button
               onClick={() =>
