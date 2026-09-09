@@ -759,6 +759,23 @@ export function SlopeGame() {
               <div className="flex items-center gap-2 text-white/80">
                 <span className="h-3 w-3 rounded-sm bg-[#aa55ff]" /> Purple — bounces you
               </div>
+              <div className="flex items-center gap-2 text-white/80">
+                <span className="h-3 w-3 rounded-full bg-[#ffd700]" /> Gold — collect coins
+              </div>
+            </div>
+            <div className="mx-auto mb-8 max-w-md rounded-xl border border-white/10 bg-white/5 p-4 text-left text-sm">
+              <p className="mb-2 font-bold text-yellow-300">
+                Coin shop — you have {gameState.coins} coins
+              </p>
+              {(Object.keys(POWER_UPS) as PowerUp[]).map((p) => (
+                <p key={p} className="text-white/70">
+                  <span style={{ color: POWER_UPS[p].color }}>
+                    Press {POWER_UPS[p].key} — {POWER_UPS[p].label}
+                  </span>{" "}
+                  · {POWER_UPS[p].cost} coins · {POWER_UPS[p].duration}s ·{" "}
+                  {POWER_UPS[p].hint}
+                </p>
+              ))}
             </div>
             <button
               onClick={() =>
