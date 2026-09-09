@@ -195,9 +195,24 @@ export function SlopeGame() {
         type: BlockType;
         active: boolean;
       }
+      interface Coin {
+        mesh: THREE.Mesh;
+        d: number;
+        lateral: number;
+      }
+
+      const coinGeometry = new THREE.TorusGeometry(0.38, 0.13, 12, 24);
+      const coinMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffd700,
+        emissive: 0xaa7700,
+        emissiveIntensity: 0.9,
+        roughness: 0.25,
+        metalness: 0.9,
+      });
 
       const segments: Seg[] = [];
       const blocks: Block[] = [];
+      const coins: Coin[] = [];
       let spawnDistance = 0;
 
       function pickType(): BlockType {
