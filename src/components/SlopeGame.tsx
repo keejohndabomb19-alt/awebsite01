@@ -214,15 +214,15 @@ export function SlopeGame() {
       // Touch controls
       let touchStartX = 0;
       function handleTouchStart(e: TouchEvent) {
-        touchStartX = e.touches[0].clientX;
+        touchStartX = e.touches[0]!.clientX;
       }
       function handleTouchMove(e: TouchEvent) {
-        const deltaX = e.touches[0].clientX - touchStartX;
+        const deltaX = e.touches[0]!.clientX - touchStartX;
         targetBallX = Math.max(
           -trackWidth / 2 + 1,
           Math.min(trackWidth / 2 - 1, ballX + deltaX * 0.02)
         );
-        touchStartX = e.touches[0].clientX;
+        touchStartX = e.touches[0]!.clientX;
       }
       container.addEventListener("touchstart", handleTouchStart);
       container.addEventListener("touchmove", handleTouchMove);
