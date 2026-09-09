@@ -520,8 +520,9 @@ export function SlopeGame() {
           );
 
           // Vertical (bounce) physics
+          const gravity = timers.jump > 0 ? 12 : 26;
           if (ballHeight > 0 || verticalVel > 0) {
-            verticalVel -= 26 * delta;
+            verticalVel -= gravity * delta;
             ballHeight += verticalVel * delta;
             if (ballHeight <= 0) {
               ballHeight = 0;
