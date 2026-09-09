@@ -419,11 +419,17 @@ export function SlopeGame() {
         lateralVel = 0;
         ballHeight = 0;
         verticalVel = 0;
+        timers.speed = 0;
+        timers.jump = 0;
+        timers.shield = 0;
+        (ball.material as THREE.MeshStandardMaterial).color.set(0x00ffff);
 
         segments.forEach((s) => scene.remove(s.group));
         blocks.forEach((b) => scene.remove(b.mesh));
+        coins.forEach((c) => scene.remove(c.mesh));
         segments.length = 0;
         blocks.length = 0;
+        coins.length = 0;
         buildTrack();
 
         isGameOver = false;
@@ -434,6 +440,8 @@ export function SlopeGame() {
           isPlaying: true,
           isGameOver: false,
           message: "",
+          coins: coinCount,
+          timers: { speed: 0, jump: 0, shield: 0 },
         });
       }
 
