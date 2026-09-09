@@ -276,6 +276,22 @@ export function SlopeGame() {
             blocks.push({ mesh, d, lateral, size, type, active: true });
           }
         }
+
+        // Coins
+        if (d > 20 && Math.random() > 0.55) {
+          const laneWidth = trackWidth / 5;
+          const lane = Math.floor(Math.random() * 5) - 2;
+          const lateral = lane * laneWidth;
+          const clash = blocks.some(
+            (b) => b.d === d && Math.abs(b.lateral - lateral) < 1.2
+          );
+          if (!clash) {
+            const mesh = new THREE.Mesh(coinGeometry, coinMaterial);
+            mesh.castShadow = true;
+            scene.add(mesh);
+            coins.push({ mesh, d, lateral });
+          }
+        }
       }
 
       function buildTrack() {
