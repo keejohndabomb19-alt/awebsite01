@@ -320,16 +320,56 @@ export function SlopeGame() {
       let lastTime = performance.now();
       let messageTimer = 0;
 
+      // ---- Coins & power-ups -------------------------------------------
+      const stored = Number(window.localStorage.getItem("slope-coins") ?? "0");
+      let coinCount = Number.isFinite(stored) ? stored : 0;
+      const timers: Record<PowerUp, number> = { speed: 0, jump: 0, shield: 0 };
+
+      function saveCoins() {
+        window.localStorage.setItem("slope-coins", String(coinCount));
+      }
+      saveCoins();
+
       function flash(msg: string) {
         messageTimer = 1.2;
         setGameState((s) => ({ ...s, message: msg }));
       }
+
+      function syncMeta() {
+        setGameState((s) => ({
+          ...s,
+          coins: coinCount,
+          timers: { ...timers },
+        }));
+      }
+      syncMeta();
+
+      function buyPowerUp(p: PowerUp) {
+        const info = POWER_UPS[p];
+        if (coinCount < info.cost) {
+          flash("Not enough coins");
+          syncMeta();
+          return;
+        }
+        coinCount -= info.cost;
+        saveCoins();
+        timers[p] = info.duration;
+        if (p === "shield") {
+          (ball.material as THREE.MeshStandardMaterial).color.set(0xffd700);
+        }
+        flash(`${info.label} activated!`);
+        syncMeta();
+      }
+      buyRef.current = buyPowerUp;
 
       const keys = { left: false, right: false };
 
       function handleKeyDown(e: KeyboardEvent) {
         if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") keys.left = true;
         if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") keys.right = true;
+        if (e.key === "1") buyPowerUp("speed");
+        if (e.key === "2") buyPowerUp("jump");
+        if (e.key === "3") buyPowerUp("shield");
         if (e.key === " ") {
           if (isGameOver) resetGame();
           else if (!isPlaying) startGame();
