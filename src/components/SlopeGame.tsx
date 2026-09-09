@@ -530,6 +530,19 @@ export function SlopeGame() {
             }
           }
 
+          // Coin pickups
+          for (let i = coins.length - 1; i >= 0; i--) {
+            const c = coins[i]!;
+            if (Math.abs(c.d - distance) > 0.9) continue;
+            if (Math.abs(c.lateral - lateralPos) > 1) continue;
+            if (ballHeight > 1.4) continue;
+            scene.remove(c.mesh);
+            coins.splice(i, 1);
+            coinCount += 1;
+            saveCoins();
+            syncMeta();
+          }
+
           // Collisions
           for (const b of blocks) {
             if (!b.active) continue;
@@ -539,6 +552,12 @@ export function SlopeGame() {
             if (ballHeight > b.size) continue;
 
             if (b.type === "crash") {
+              if (timers.shield > 0) {
+                b.active = false;
+                scene.remove(b.mesh);
+                flash("Smashed!");
+                continue;
+              }
               gameOver();
               break;
             }
@@ -552,7 +571,7 @@ export function SlopeGame() {
               scene.remove(b.mesh);
               flash(blockStyles.boost.label);
             } else {
-              verticalVel = 9;
+              verticalVel = timers.jump > 0 ? 12 : 9;
               b.mesh.scale.y = 0.4;
               flash(blockStyles.bounce.label);
             }
