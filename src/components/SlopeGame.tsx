@@ -7,18 +7,54 @@ interface GameState {
   isPlaying: boolean;
   isGameOver: boolean;
   message: string;
+  coins: number;
+  timers: { speed: number; jump: number; shield: number };
 }
 
 type BlockType = "crash" | "slow" | "boost" | "bounce";
+type PowerUp = "speed" | "jump" | "shield";
+
+const POWER_UPS: Record<
+  PowerUp,
+  { cost: number; duration: number; label: string; hint: string; color: string; key: string }
+> = {
+  speed: {
+    cost: 15,
+    duration: 8,
+    label: "Turbo",
+    hint: "Much faster ride",
+    color: "#00ff88",
+    key: "1",
+  },
+  jump: {
+    cost: 12,
+    duration: 12,
+    label: "Long Jump",
+    hint: "Float further off bounces",
+    color: "#aa55ff",
+    key: "2",
+  },
+  shield: {
+    cost: 25,
+    duration: 6,
+    label: "Invincible",
+    hint: "Smash through red blocks",
+    color: "#ffd700",
+    key: "3",
+  },
+};
 
 export function SlopeGame() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const buyRef = useRef<((p: PowerUp) => void) | null>(null);
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     speed: 0,
     isPlaying: false,
     isGameOver: false,
     message: "",
+    coins: 0,
+    timers: { speed: 0, jump: 0, shield: 0 },
   });
 
   useEffect(() => {
