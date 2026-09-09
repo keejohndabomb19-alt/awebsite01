@@ -453,10 +453,26 @@ export function SlopeGame() {
         lastTime = now;
 
         if (isPlaying && !isGameOver) {
+          // Power-up timers
+          let expired = false;
+          (Object.keys(timers) as PowerUp[]).forEach((p) => {
+            if (timers[p] > 0) {
+              timers[p] = Math.max(0, timers[p] - delta);
+              if (timers[p] === 0) {
+                expired = true;
+                if (p === "shield") {
+                  (ball.material as THREE.MeshStandardMaterial).color.set(0x00ffff);
+                }
+                flash(`${POWER_UPS[p].label} over`);
+              }
+            }
+          });
+          if (expired) syncMeta();
+
           speedModifier += (0 - speedModifier) * Math.min(1, delta * 0.8);
           currentSpeed = Math.max(
             8,
-            baseSpeed + score * 0.02 + speedModifier
+            baseSpeed + score * 0.02 + speedModifier + (timers.speed > 0 ? 10 : 0)
           );
 
           const moveDistance = currentSpeed * delta;
