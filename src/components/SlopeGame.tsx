@@ -6,7 +6,10 @@ interface GameState {
   speed: number;
   isPlaying: boolean;
   isGameOver: boolean;
+  message: string;
 }
+
+type BlockType = "crash" | "slow" | "boost" | "bounce";
 
 export function SlopeGame() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -15,6 +18,7 @@ export function SlopeGame() {
     speed: 0,
     isPlaying: false,
     isGameOver: false,
+    message: "",
   });
 
   useEffect(() => {
@@ -30,13 +34,12 @@ export function SlopeGame() {
       const container = containerRef.current;
       if (!container) return;
 
-      // Scene setup
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x0a0a0f);
-      scene.fog = new THREE.Fog(0x0a0a0f, 20, 120);
+      scene.fog = new THREE.Fog(0x0a0a0f, 25, 130);
 
       const camera = new THREE.PerspectiveCamera(
-        60,
+        62,
         container.clientWidth / container.clientHeight,
         0.1,
         1000
@@ -50,9 +53,7 @@ export function SlopeGame() {
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       container.appendChild(renderer.domElement);
 
-      // Lights
-      const ambientLight = new THREE.AmbientLight(0x404080, 0.5);
-      scene.add(ambientLight);
+      scene.add(new THREE.AmbientLight(0x404080, 0.6));
 
       const dirLight = new THREE.DirectionalLight(0xaaccff, 1.2);
       dirLight.position.set(10, 30, 10);
@@ -60,167 +61,229 @@ export function SlopeGame() {
       dirLight.shadow.mapSize.width = 2048;
       dirLight.shadow.mapSize.height = 2048;
       dirLight.shadow.camera.near = 0.5;
-      dirLight.shadow.camera.far = 100;
-      dirLight.shadow.camera.left = -30;
-      dirLight.shadow.camera.right = 30;
-      dirLight.shadow.camera.top = 30;
-      dirLight.shadow.camera.bottom = -30;
+      dirLight.shadow.camera.far = 120;
+      dirLight.shadow.camera.left = -40;
+      dirLight.shadow.camera.right = 40;
+      dirLight.shadow.camera.top = 40;
+      dirLight.shadow.camera.bottom = -40;
       scene.add(dirLight);
 
-      const neonLight = new THREE.PointLight(0x00ffff, 2, 50);
-      neonLight.position.set(0, 5, 0);
+      const neonLight = new THREE.PointLight(0x00ffff, 2.5, 50);
       scene.add(neonLight);
 
       // Ball
-      const ballGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-      const ballMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ffff,
-        emissive: 0x0088aa,
-        emissiveIntensity: 0.5,
-        roughness: 0.2,
-        metalness: 0.8,
-      });
-      const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+      const ball = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 32, 32),
+        new THREE.MeshStandardMaterial({
+          color: 0x00ffff,
+          emissive: 0x0088aa,
+          emissiveIntensity: 0.5,
+          roughness: 0.2,
+          metalness: 0.8,
+        })
+      );
       ball.castShadow = true;
       scene.add(ball);
 
-      // Track parameters
+      // ---- Track path (curves + slopes) -------------------------------
       const trackWidth = 10;
       const segmentLength = 4;
-      const visibleSegments = 40;
-      const segments: THREE.Group[] = [];
-      const obstacles: THREE.Mesh[] = [];
-      const obstacleBodies: { mesh: THREE.Mesh; active: boolean }[] = [];
+      const visibleSegments = 55;
 
-      // Materials
+      const pathX = (d: number) =>
+        7 * Math.sin(d * 0.011) + 3.2 * Math.sin(d * 0.029 + 1.3);
+      const pathY = (d: number) =>
+        -2.6 * Math.sin(d * 0.008) - 1.4 * Math.sin(d * 0.021 + 0.7) - d * 0.012;
+
       const trackMaterial = new THREE.MeshStandardMaterial({
         color: 0x111116,
         roughness: 0.6,
         metalness: 0.3,
       });
-
       const edgeMaterial = new THREE.MeshStandardMaterial({
         color: 0x00ffff,
         emissive: 0x00aaaa,
         emissiveIntensity: 0.8,
       });
+      const lineMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
-      const obstacleMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff2244,
-        emissive: 0xaa0022,
-        emissiveIntensity: 0.6,
-        roughness: 0.3,
-        metalness: 0.5,
-      });
+      const blockStyles: Record<
+        BlockType,
+        { color: number; emissive: number; label: string }
+      > = {
+        crash: { color: 0xff2244, emissive: 0xaa0022, label: "Crash" },
+        slow: { color: 0xffaa00, emissive: 0xaa6600, label: "Slowed down!" },
+        boost: { color: 0x00ff88, emissive: 0x00aa55, label: "Boost!" },
+        bounce: { color: 0xaa55ff, emissive: 0x6622aa, label: "Bounce!" },
+      };
+      const blockMaterials = {
+        crash: new THREE.MeshStandardMaterial({
+          color: blockStyles.crash.color,
+          emissive: blockStyles.crash.emissive,
+          emissiveIntensity: 0.6,
+          roughness: 0.3,
+          metalness: 0.5,
+        }),
+        slow: new THREE.MeshStandardMaterial({
+          color: blockStyles.slow.color,
+          emissive: blockStyles.slow.emissive,
+          emissiveIntensity: 0.6,
+          roughness: 0.5,
+          metalness: 0.3,
+        }),
+        boost: new THREE.MeshStandardMaterial({
+          color: blockStyles.boost.color,
+          emissive: blockStyles.boost.emissive,
+          emissiveIntensity: 0.7,
+          roughness: 0.3,
+          metalness: 0.6,
+        }),
+        bounce: new THREE.MeshStandardMaterial({
+          color: blockStyles.bounce.color,
+          emissive: blockStyles.bounce.emissive,
+          emissiveIntensity: 0.7,
+          roughness: 0.4,
+          metalness: 0.4,
+        }),
+      };
 
-      // Create track segment
-      function createSegment(z: number) {
+      interface Seg {
+        group: THREE.Group;
+        d: number;
+      }
+      interface Block {
+        mesh: THREE.Mesh;
+        d: number;
+        lateral: number;
+        size: number;
+        type: BlockType;
+        active: boolean;
+      }
+
+      const segments: Seg[] = [];
+      const blocks: Block[] = [];
+      let spawnDistance = 0;
+
+      function pickType(): BlockType {
+        const r = Math.random();
+        if (r < 0.52) return "crash";
+        if (r < 0.72) return "slow";
+        if (r < 0.89) return "boost";
+        return "bounce";
+      }
+
+      function createSegment(d: number) {
         const group = new THREE.Group();
 
-        // Floor
-        const floorGeometry = new THREE.BoxGeometry(trackWidth, 0.4, segmentLength);
-        const floor = new THREE.Mesh(floorGeometry, trackMaterial);
+        const floor = new THREE.Mesh(
+          new THREE.BoxGeometry(trackWidth, 1, segmentLength + 0.15),
+          trackMaterial
+        );
         floor.receiveShadow = true;
-        floor.position.y = -0.2;
+        floor.position.y = -0.5;
         group.add(floor);
 
-        // Side edges
-        const edgeGeometry = new THREE.BoxGeometry(0.2, 0.6, segmentLength);
+        const edgeGeometry = new THREE.BoxGeometry(0.2, 0.6, segmentLength + 0.15);
         const leftEdge = new THREE.Mesh(edgeGeometry, edgeMaterial);
         leftEdge.position.set(-trackWidth / 2 - 0.1, 0.1, 0);
         group.add(leftEdge);
-
         const rightEdge = new THREE.Mesh(edgeGeometry, edgeMaterial);
         rightEdge.position.set(trackWidth / 2 + 0.1, 0.1, 0);
         group.add(rightEdge);
 
-        // Center line
-        const lineGeometry = new THREE.BoxGeometry(0.1, 0.05, segmentLength * 0.6);
-        const lineMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-        const line = new THREE.Mesh(lineGeometry, lineMaterial);
-        line.position.set(0, 0.01, 0);
+        const line = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 0.05, segmentLength * 0.6),
+          lineMaterial
+        );
+        line.position.y = 0.02;
         group.add(line);
 
-        group.position.z = z;
+        // Bank + pitch the segment to follow the path
+        const ahead = 2;
+        group.rotation.z = -Math.atan2(pathX(d + ahead) - pathX(d - ahead), ahead * 2) * 0.35;
+        group.rotation.x = Math.atan2(pathY(d + ahead) - pathY(d - ahead), ahead * 2);
+
         scene.add(group);
-        segments.push(group);
+        segments.push({ group, d });
 
-        // Add obstacles randomly
-        if (z < -10 && Math.random() > 0.55) {
-          const laneCount = 5;
-          const laneWidth = trackWidth / laneCount;
-          const lane = Math.floor(Math.random() * laneCount);
-          const x = (lane - laneCount / 2 + 0.5) * laneWidth;
-
-          const size = 1 + Math.random() * 0.8;
-          const obstacleGeometry = new THREE.BoxGeometry(size, size, size);
-          const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
-          obstacle.position.set(x, size / 2, z);
-          obstacle.castShadow = true;
-          obstacle.receiveShadow = true;
-          scene.add(obstacle);
-          obstacles.push(obstacle);
-          obstacleBodies.push({ mesh: obstacle, active: true });
+        // Blocks
+        if (d > 40 && Math.random() > 0.5) {
+          const count = Math.random() > 0.82 ? 2 : 1;
+          const lanes = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5);
+          for (let c = 0; c < count; c++) {
+            const laneWidth = trackWidth / 5;
+            const lateral = (lanes[c]! - 2) * laneWidth;
+            const type = pickType();
+            const size = type === "crash" ? 1 + Math.random() * 0.8 : 1.1;
+            const mesh = new THREE.Mesh(
+              new THREE.BoxGeometry(size, size, size),
+              blockMaterials[type]
+            );
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            blocks.push({ mesh, d, lateral, size, type, active: true });
+          }
         }
       }
 
-      // Initialize track
-      for (let i = 0; i < visibleSegments; i++) {
-        createSegment(-i * segmentLength);
+      function buildTrack() {
+        spawnDistance = 0;
+        for (let i = 0; i < visibleSegments; i++) {
+          createSegment(spawnDistance);
+          spawnDistance += segmentLength;
+        }
       }
+      buildTrack();
 
-      // Game variables
-      let ballX = 0;
-      let targetBallX = 0;
-      let ballVelocityX = 0;
+      // ---- Game state --------------------------------------------------
+      let lateralPos = 0;
+      let lateralVel = 0;
+      let targetLateral = 0;
+      let distance = 0;
+      let ballHeight = 0;
+      let verticalVel = 0;
       let score = 0;
       const baseSpeed = 15;
       let currentSpeed = baseSpeed;
+      let speedModifier = 0;
       let isPlaying = false;
       let isGameOver = false;
-      let animationId: number;
+      let animationId = 0;
       let lastTime = performance.now();
+      let messageTimer = 0;
 
-      // Input handling
+      function flash(msg: string) {
+        messageTimer = 1.2;
+        setGameState((s) => ({ ...s, message: msg }));
+      }
+
       const keys = { left: false, right: false };
 
       function handleKeyDown(e: KeyboardEvent) {
-        if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
-          keys.left = true;
-        }
-        if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-          keys.right = true;
-        }
-        if (e.key === " " && !isPlaying && !isGameOver) {
-          startGame();
-        }
-        if (e.key === " " && isGameOver) {
-          resetGame();
+        if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") keys.left = true;
+        if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") keys.right = true;
+        if (e.key === " ") {
+          if (isGameOver) resetGame();
+          else if (!isPlaying) startGame();
         }
       }
-
       function handleKeyUp(e: KeyboardEvent) {
-        if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
-          keys.left = false;
-        }
-        if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-          keys.right = false;
-        }
+        if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") keys.left = false;
+        if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") keys.right = false;
       }
-
       window.addEventListener("keydown", handleKeyDown);
       window.addEventListener("keyup", handleKeyUp);
 
-      // Touch controls
       let touchStartX = 0;
       function handleTouchStart(e: TouchEvent) {
         touchStartX = e.touches[0]!.clientX;
       }
       function handleTouchMove(e: TouchEvent) {
         const deltaX = e.touches[0]!.clientX - touchStartX;
-        targetBallX = Math.max(
-          -trackWidth / 2 + 1,
-          Math.min(trackWidth / 2 - 1, ballX + deltaX * 0.02)
+        targetLateral = Math.max(
+          -trackWidth / 2 + 0.6,
+          Math.min(trackWidth / 2 - 0.6, lateralPos + deltaX * 0.02)
         );
         touchStartX = e.touches[0]!.clientX;
       }
@@ -241,23 +304,20 @@ export function SlopeGame() {
 
       function resetGame() {
         score = 0;
+        distance = 0;
         currentSpeed = baseSpeed;
-        ballX = 0;
-        targetBallX = 0;
-        ballVelocityX = 0;
-        ball.position.set(0, 0.5, 0);
-        ball.rotation.set(0, 0, 0);
+        speedModifier = 0;
+        lateralPos = 0;
+        targetLateral = 0;
+        lateralVel = 0;
+        ballHeight = 0;
+        verticalVel = 0;
 
-        // Clear obstacles and segments
-        segments.forEach((seg) => scene.remove(seg));
-        obstacles.forEach((obs) => scene.remove(obs));
+        segments.forEach((s) => scene.remove(s.group));
+        blocks.forEach((b) => scene.remove(b.mesh));
         segments.length = 0;
-        obstacles.length = 0;
-        obstacleBodies.length = 0;
-
-        for (let i = 0; i < visibleSegments; i++) {
-          createSegment(-i * segmentLength);
-        }
+        blocks.length = 0;
+        buildTrack();
 
         isGameOver = false;
         isPlaying = true;
@@ -266,6 +326,7 @@ export function SlopeGame() {
           speed: 0,
           isPlaying: true,
           isGameOver: false,
+          message: "",
         });
       }
 
@@ -273,89 +334,97 @@ export function SlopeGame() {
         animationId = requestAnimationFrame(animate);
 
         const now = performance.now();
-        const delta = Math.min((now - lastTime) / 1000, 0.1);
+        const delta = Math.min((now - lastTime) / 1000, 0.05);
         lastTime = now;
 
         if (isPlaying && !isGameOver) {
-          // Increase speed over time
-          currentSpeed = baseSpeed + score * 0.03;
+          speedModifier += (0 - speedModifier) * Math.min(1, delta * 0.8);
+          currentSpeed = Math.max(
+            8,
+            baseSpeed + score * 0.02 + speedModifier
+          );
 
-          // Move track segments toward camera (ball stays at z=0 visually)
           const moveDistance = currentSpeed * delta;
+          distance += moveDistance;
           score += moveDistance;
 
-          // Move segments
+          // Recycle + spawn segments
           for (let i = segments.length - 1; i >= 0; i--) {
-            segments[i]!.position.z += moveDistance;
-            if (segments[i]!.position.z > 10) {
-              scene.remove(segments[i]!);
+            if (segments[i]!.d - distance < -12) {
+              scene.remove(segments[i]!.group);
               segments.splice(i, 1);
             }
           }
-
-          // Move obstacles
-          for (let i = obstacles.length - 1; i >= 0; i--) {
-            obstacles[i]!.position.z += moveDistance;
-            if (obstacles[i]!.position.z > 10) {
-              scene.remove(obstacles[i]!);
-              obstacles.splice(i, 1);
-              obstacleBodies.splice(i, 1);
+          while (spawnDistance - distance < segmentLength * (visibleSegments - 6)) {
+            createSegment(spawnDistance);
+            spawnDistance += segmentLength;
+          }
+          for (let i = blocks.length - 1; i >= 0; i--) {
+            if (blocks[i]!.d - distance < -12) {
+              scene.remove(blocks[i]!.mesh);
+              blocks.splice(i, 1);
             }
           }
 
-          // Spawn new segments
-          const lastSegmentZ =
-            segments.length > 0
-              ? segments[segments.length - 1]!.position.z
-              : 0;
-          if (lastSegmentZ < -segmentLength * (visibleSegments - 5)) {
-            createSegment(lastSegmentZ - segmentLength);
-          }
-
-          // Ball physics
+          // Steering
           const maxSpeed = 12;
-          const acceleration = 30;
-          const friction = 8;
-
-          if (keys.left) ballVelocityX -= acceleration * delta;
-          if (keys.right) ballVelocityX += acceleration * delta;
-          ballVelocityX -= ballVelocityX * friction * delta;
-          ballVelocityX = Math.max(-maxSpeed, Math.min(maxSpeed, ballVelocityX));
-
-          ballX += ballVelocityX * delta;
-          ballX = Math.max(
+          const acceleration = 34;
+          if (keys.left) lateralVel -= acceleration * delta;
+          if (keys.right) lateralVel += acceleration * delta;
+          lateralVel *= Math.exp(-8 * delta);
+          lateralVel = Math.max(-maxSpeed, Math.min(maxSpeed, lateralVel));
+          lateralPos += lateralVel * delta;
+          if (!keys.left && !keys.right) {
+            lateralPos += (targetLateral - lateralPos) * 5 * delta;
+          }
+          lateralPos = Math.max(
             -trackWidth / 2 + 0.6,
-            Math.min(trackWidth / 2 - 0.6, ballX)
+            Math.min(trackWidth / 2 - 0.6, lateralPos)
           );
 
-          // Smooth interpolation toward target for touch
-          if (!keys.left && !keys.right) {
-            ballX += (targetBallX - ballX) * 5 * delta;
+          // Vertical (bounce) physics
+          if (ballHeight > 0 || verticalVel > 0) {
+            verticalVel -= 26 * delta;
+            ballHeight += verticalVel * delta;
+            if (ballHeight <= 0) {
+              ballHeight = 0;
+              verticalVel = 0;
+            }
           }
 
-          ball.position.x = ballX;
-          ball.position.y = 0.5;
-          ball.position.z = 0;
+          // Collisions
+          for (const b of blocks) {
+            if (!b.active) continue;
+            const dz = b.d - distance;
+            if (Math.abs(dz) > b.size / 2 + 0.5) continue;
+            if (Math.abs(b.lateral - lateralPos) > b.size / 2 + 0.5) continue;
+            if (ballHeight > b.size) continue;
 
-          // Rotate ball based on movement
-          ball.rotation.x -= (currentSpeed / 0.5) * delta;
-          ball.rotation.z -= (ballVelocityX / 0.5) * delta;
-
-          // Collision detection
-          const ballBox = new THREE.Box3().setFromObject(ball);
-          for (const obs of obstacleBodies) {
-            if (!obs.active) continue;
-            const obsBox = new THREE.Box3().setFromObject(obs.mesh);
-            if (ballBox.intersectsBox(obsBox)) {
+            if (b.type === "crash") {
               gameOver();
               break;
             }
+            b.active = false;
+            if (b.type === "slow") {
+              speedModifier = -7;
+              scene.remove(b.mesh);
+              flash(blockStyles.slow.label);
+            } else if (b.type === "boost") {
+              speedModifier = 12;
+              scene.remove(b.mesh);
+              flash(blockStyles.boost.label);
+            } else {
+              verticalVel = 9;
+              b.mesh.scale.y = 0.4;
+              flash(blockStyles.bounce.label);
+            }
           }
 
-          // Update neon light to follow ball
-          neonLight.position.x = ballX;
+          if (messageTimer > 0) {
+            messageTimer -= delta;
+            if (messageTimer <= 0) setGameState((s) => ({ ...s, message: "" }));
+          }
 
-          // Update game state display
           setGameState((s) => ({
             ...s,
             score: Math.floor(score),
@@ -363,18 +432,44 @@ export function SlopeGame() {
           }));
         }
 
-        // Camera follow
-        camera.position.x += (ballX * 0.4 - camera.position.x) * 0.1;
-        camera.position.y = 5 + Math.sin(now * 0.001) * 0.2;
+        // Position world objects relative to current distance
+        for (const s of segments) {
+          s.group.position.set(pathX(s.d), pathY(s.d), -(s.d - distance));
+        }
+        for (const b of blocks) {
+          b.mesh.position.set(
+            pathX(b.d) + b.lateral,
+            pathY(b.d) + (b.size * b.mesh.scale.y) / 2,
+            -(b.d - distance)
+          );
+        }
+
+        const ballWorldX = pathX(distance) + lateralPos;
+        const ballWorldY = pathY(distance) + 0.5 + ballHeight;
+        ball.position.set(ballWorldX, ballWorldY, 0);
+        ball.rotation.x -= currentSpeed * 2 * delta;
+        ball.rotation.z -= lateralVel * 2 * delta;
+
+        neonLight.position.set(ballWorldX, ballWorldY + 3, 0);
+
+        // Camera follows the curving, sloping track
+        const camTargetX = pathX(distance) + lateralPos * 0.4;
+        const camTargetY = pathY(distance) + 5;
+        camera.position.x += (camTargetX - camera.position.x) * Math.min(1, delta * 5);
+        camera.position.y += (camTargetY - camera.position.y) * Math.min(1, delta * 4);
         camera.position.z = 12;
-        camera.lookAt(ballX * 0.3, 0.5, -5);
+        const aheadD = distance + 22;
+        camera.lookAt(
+          pathX(aheadD) * 0.6 + ballWorldX * 0.4,
+          pathY(aheadD) + 1.5,
+          -22
+        );
 
         renderer.render(scene, camera);
       }
 
       animate();
 
-      // Resize handler
       function handleResize() {
         if (!container) return;
         camera.aspect = container.clientWidth / container.clientHeight;
@@ -411,23 +506,25 @@ export function SlopeGame() {
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-6">
         <div className="flex items-start justify-between">
           <div className="rounded-lg bg-black/40 px-4 py-2 backdrop-blur-sm">
-            <p className="text-xs uppercase tracking-widest text-cyan-400">
-              Score
-            </p>
+            <p className="text-xs uppercase tracking-widest text-cyan-400">Score</p>
             <p className="font-mono text-3xl font-bold text-white">
               {gameState.score.toLocaleString()}
             </p>
           </div>
           <div className="rounded-lg bg-black/40 px-4 py-2 backdrop-blur-sm">
-            <p className="text-xs uppercase tracking-widest text-cyan-400">
-              Speed
-            </p>
+            <p className="text-xs uppercase tracking-widest text-cyan-400">Speed</p>
             <p className="font-mono text-3xl font-bold text-white">
               {gameState.speed}
               <span className="text-lg text-white/60"> km/h</span>
             </p>
           </div>
         </div>
+
+        {gameState.message && (
+          <p className="text-center font-mono text-4xl font-black text-white drop-shadow-[0_0_12px_rgba(0,255,255,0.8)]">
+            {gameState.message}
+          </p>
+        )}
 
         <div className="text-center">
           <p className="text-sm text-white/50">
@@ -443,14 +540,27 @@ export function SlopeGame() {
             <h1 className="mb-2 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-7xl font-black tracking-tighter text-transparent">
               SLOPE
             </h1>
-            <p className="mb-8 text-lg text-white/70">
-              Roll down the endless neon slope. Avoid the red obstacles.
+            <p className="mb-6 text-lg text-white/70">
+              Ride the curving, diving neon track.
             </p>
+            <div className="mx-auto mb-8 grid max-w-md grid-cols-2 gap-3 text-left text-sm">
+              <div className="flex items-center gap-2 text-white/80">
+                <span className="h-3 w-3 rounded-sm bg-[#ff2244]" /> Red — crash
+              </div>
+              <div className="flex items-center gap-2 text-white/80">
+                <span className="h-3 w-3 rounded-sm bg-[#ffaa00]" /> Orange — slows you
+              </div>
+              <div className="flex items-center gap-2 text-white/80">
+                <span className="h-3 w-3 rounded-sm bg-[#00ff88]" /> Green — speed boost
+              </div>
+              <div className="flex items-center gap-2 text-white/80">
+                <span className="h-3 w-3 rounded-sm bg-[#aa55ff]" /> Purple — bounces you
+              </div>
+            </div>
             <button
-              onClick={() => {
-                const event = new KeyboardEvent("keydown", { key: " " });
-                window.dispatchEvent(event);
-              }}
+              onClick={() =>
+                window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }))
+              }
               className="rounded-full bg-cyan-500 px-8 py-3 font-bold text-black shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 hover:bg-cyan-400"
             >
               Press Space to Start
@@ -469,10 +579,9 @@ export function SlopeGame() {
               {gameState.score.toLocaleString()}
             </p>
             <button
-              onClick={() => {
-                const event = new KeyboardEvent("keydown", { key: " " });
-                window.dispatchEvent(event);
-              }}
+              onClick={() =>
+                window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }))
+              }
               className="rounded-full bg-cyan-500 px-8 py-3 font-bold text-black shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 hover:bg-cyan-400"
             >
               Press Space to Restart
