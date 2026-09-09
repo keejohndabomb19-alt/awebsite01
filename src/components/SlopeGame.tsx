@@ -496,6 +496,12 @@ export function SlopeGame() {
               blocks.splice(i, 1);
             }
           }
+          for (let i = coins.length - 1; i >= 0; i--) {
+            if (coins[i]!.d - distance < -12) {
+              scene.remove(coins[i]!.mesh);
+              coins.splice(i, 1);
+            }
+          }
 
           // Steering
           const maxSpeed = 12;
