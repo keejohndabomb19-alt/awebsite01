@@ -586,6 +586,8 @@ export function SlopeGame() {
             ...s,
             score: Math.floor(score),
             speed: Math.floor(currentSpeed * 2),
+            coins: coinCount,
+            timers: { ...timers },
           }));
         }
 
