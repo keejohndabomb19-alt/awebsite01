@@ -466,6 +466,8 @@ export function SlopeGame() {
           isGameOver: false,
           message: "",
           coins: coinCount,
+          highScore,
+          newBest: false,
           timers: { speed: 0, jump: 0, shield: 0 },
         });
       }
@@ -612,6 +614,7 @@ export function SlopeGame() {
             score: Math.floor(score),
             speed: Math.floor(currentSpeed * 2),
             coins: coinCount,
+            highScore,
             timers: { ...timers },
           }));
         }
