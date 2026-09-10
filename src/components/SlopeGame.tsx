@@ -11,37 +11,10 @@ interface GameState {
   highScore: number;
   newBest: boolean;
   timers: { speed: number; jump: number; shield: number };
-  doubleCoins: number;
-  combo: number;
-  comboMultiplier: number;
-  comboWindow: number;
-  comboSpeedBonus: number;
 }
 
 type BlockType = "crash" | "slow" | "boost" | "bounce";
 type PowerUp = "speed" | "jump" | "shield";
-type TrackPickupType = "shield" | "doubleCoins";
-
-const TRACK_PICKUPS: Record<
-  TrackPickupType,
-  { duration: number; label: string; description: string }
-> = {
-  shield: {
-    duration: 7,
-    label: "Shield",
-    description: "7 seconds of crash protection",
-  },
-  doubleCoins: {
-    duration: 10,
-    label: "Double Coins",
-    description: "Every coin is worth 2 for 10 seconds",
-  },
-};
-
-const COMBO_WINDOW = 4;
-const COMBO_STEP = 0.25;
-const MAX_COMBO_MULTIPLIER = 3;
-const MAX_COMBO_SPEED_BONUS = 10;
 
 const POWER_UPS: Record<
   PowerUp,
@@ -86,11 +59,6 @@ export function SlopeGame() {
     highScore: 0,
     newBest: false,
     timers: { speed: 0, jump: 0, shield: 0 },
-    doubleCoins: 0,
-    combo: 0,
-    comboMultiplier: 1,
-    comboWindow: 0,
-    comboSpeedBonus: 0,
   });
 
   useEffect(() => {
@@ -122,7 +90,7 @@ export function SlopeGame() {
       renderer.setSize(container.clientWidth, container.clientHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFShadowMap;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       container.appendChild(renderer.domElement);
 
       scene.add(new THREE.AmbientLight(0x404080, 0.6));
@@ -230,18 +198,11 @@ export function SlopeGame() {
         size: number;
         type: BlockType;
         active: boolean;
-        countedAsDodged: boolean;
       }
       interface Coin {
         mesh: THREE.Mesh;
         d: number;
         lateral: number;
-      }
-      interface TrackPickup {
-        group: THREE.Group;
-        d: number;
-        lateral: number;
-        type: TrackPickupType;
       }
 
       const coinGeometry = new THREE.TorusGeometry(0.38, 0.13, 12, 24);
@@ -252,57 +213,11 @@ export function SlopeGame() {
         roughness: 0.25,
         metalness: 0.9,
       });
-      const shieldMaterial = new THREE.MeshStandardMaterial({
-        color: 0x33ddff,
-        emissive: 0x007799,
-        emissiveIntensity: 1,
-        roughness: 0.2,
-        metalness: 0.75,
-      });
-      const shieldRingMaterial = new THREE.MeshBasicMaterial({ color: 0xaaffff });
-      const doubleCoinMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffee55,
-        emissive: 0xcc8800,
-        emissiveIntensity: 1,
-        roughness: 0.2,
-        metalness: 0.9,
-      });
 
       const segments: Seg[] = [];
       const blocks: Block[] = [];
       const coins: Coin[] = [];
-      const trackPickups: TrackPickup[] = [];
       let spawnDistance = 0;
-
-      function createTrackPickup(type: TrackPickupType, d: number, lateral: number) {
-        const group = new THREE.Group();
-        if (type === "shield") {
-          const core = new THREE.Mesh(
-            new THREE.OctahedronGeometry(0.55, 0),
-            shieldMaterial
-          );
-          core.scale.set(0.85, 1.15, 0.45);
-          core.castShadow = true;
-          group.add(core);
-          const ring = new THREE.Mesh(
-            new THREE.TorusGeometry(0.7, 0.07, 10, 28),
-            shieldRingMaterial
-          );
-          group.add(ring);
-        } else {
-          for (const offset of [-0.28, 0.28]) {
-            const coin = new THREE.Mesh(
-              new THREE.TorusGeometry(0.34, 0.12, 12, 24),
-              doubleCoinMaterial
-            );
-            coin.position.x = offset;
-            coin.castShadow = true;
-            group.add(coin);
-          }
-        }
-        scene.add(group);
-        trackPickups.push({ group, d, lateral, type });
-      }
 
       function pickType(): BlockType {
         const r = Math.random();
@@ -362,15 +277,7 @@ export function SlopeGame() {
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
-            blocks.push({
-              mesh,
-              d,
-              lateral,
-              size,
-              type,
-              active: true,
-              countedAsDodged: false,
-            });
+            blocks.push({ mesh, d, lateral, size, type, active: true });
           }
         }
 
@@ -388,25 +295,6 @@ export function SlopeGame() {
             scene.add(mesh);
             coins.push({ mesh, d, lateral });
           }
-        }
-
-        // Guaranteed early examples make both new pickups easy to discover.
-        const guaranteedType = d === 32 ? "doubleCoins" : d === 56 ? "shield" : null;
-        if (guaranteedType || (d > 70 && Math.random() > 0.965)) {
-          const type: TrackPickupType =
-            guaranteedType ?? (Math.random() > 0.5 ? "shield" : "doubleCoins");
-          const laneWidth = trackWidth / 5;
-          const openLanes = [-2, -1, 0, 1, 2].filter(
-            (lane) =>
-              !blocks.some(
-                (b) => b.d === d && Math.abs(b.lateral - lane * laneWidth) < 1.2
-              ) &&
-              !coins.some(
-                (coin) => coin.d === d && Math.abs(coin.lateral - lane * laneWidth) < 1.2
-              )
-          );
-          const selectedLane = openLanes[Math.floor(Math.random() * openLanes.length)] ?? 0;
-          createTrackPickup(type, d, selectedLane * laneWidth);
         }
       }
 
@@ -436,33 +324,6 @@ export function SlopeGame() {
       let animationId = 0;
       let lastTime = performance.now();
       let messageTimer = 0;
-      let doubleCoinsTimer = 0;
-      let combo = 0;
-      let comboWindow = 0;
-
-      function comboMultiplier() {
-        return Math.min(
-          MAX_COMBO_MULTIPLIER,
-          1 + Math.floor(combo / 3) * COMBO_STEP
-        );
-      }
-
-      function comboSpeedBonus() {
-        return Math.min(MAX_COMBO_SPEED_BONUS, combo * 0.7);
-      }
-
-      function resetCombo() {
-        combo = 0;
-        comboWindow = 0;
-      }
-
-      function registerDodge() {
-        combo += 1;
-        comboWindow = COMBO_WINDOW;
-        if (combo === 3 || (combo > 3 && combo % 4 === 0)) {
-          flash(`${combo} DODGES · x${comboMultiplier().toFixed(2)}`);
-        }
-      }
 
       // ---- Coins & power-ups -------------------------------------------
       const stored = Number(window.localStorage.getItem("slope-coins") ?? "0");
@@ -492,11 +353,6 @@ export function SlopeGame() {
           coins: coinCount,
           highScore,
           timers: { ...timers },
-          doubleCoins: doubleCoinsTimer,
-          combo,
-          comboMultiplier: comboMultiplier(),
-          comboWindow,
-          comboSpeedBonus: comboSpeedBonus(),
         }));
       }
       syncMeta();
@@ -591,8 +447,6 @@ export function SlopeGame() {
         lastInput = "key";
         ballHeight = 0;
         verticalVel = 0;
-        doubleCoinsTimer = 0;
-        resetCombo();
         timers.speed = 0;
         timers.jump = 0;
         timers.shield = 0;
@@ -601,11 +455,9 @@ export function SlopeGame() {
         segments.forEach((s) => scene.remove(s.group));
         blocks.forEach((b) => scene.remove(b.mesh));
         coins.forEach((c) => scene.remove(c.mesh));
-        trackPickups.forEach((p) => scene.remove(p.group));
         segments.length = 0;
         blocks.length = 0;
         coins.length = 0;
-        trackPickups.length = 0;
         buildTrack();
 
         isGameOver = false;
@@ -620,11 +472,6 @@ export function SlopeGame() {
           highScore,
           newBest: false,
           timers: { speed: 0, jump: 0, shield: 0 },
-          doubleCoins: 0,
-          combo: 0,
-          comboMultiplier: 1,
-          comboWindow: 0,
-          comboSpeedBonus: 0,
         });
       }
 
@@ -652,23 +499,10 @@ export function SlopeGame() {
           });
           if (expired) syncMeta();
 
-          if (doubleCoinsTimer > 0) {
-            doubleCoinsTimer = Math.max(0, doubleCoinsTimer - delta);
-            if (doubleCoinsTimer === 0) flash("Double Coins over");
-          }
-          if (comboWindow > 0) {
-            comboWindow = Math.max(0, comboWindow - delta);
-            if (comboWindow === 0) resetCombo();
-          }
-
           speedModifier += (0 - speedModifier) * Math.min(1, delta * 0.8);
           currentSpeed = Math.max(
             8,
-            baseSpeed +
-              score * 0.02 +
-              speedModifier +
-              comboSpeedBonus() +
-              (timers.speed > 0 ? 10 : 0)
+            baseSpeed + score * 0.02 + speedModifier + (timers.speed > 0 ? 10 : 0)
           );
 
           const moveDistance = currentSpeed * delta;
@@ -696,12 +530,6 @@ export function SlopeGame() {
             if (coins[i]!.d - distance < -12) {
               scene.remove(coins[i]!.mesh);
               coins.splice(i, 1);
-            }
-          }
-          for (let i = trackPickups.length - 1; i >= 0; i--) {
-            if (trackPickups[i]!.d - distance < -12) {
-              scene.remove(trackPickups[i]!.group);
-              trackPickups.splice(i, 1);
             }
           }
 
@@ -744,31 +572,8 @@ export function SlopeGame() {
             if (ballHeight > 1.4) continue;
             scene.remove(c.mesh);
             coins.splice(i, 1);
-            const value = doubleCoinsTimer > 0 ? 2 : 1;
-            coinCount += value;
+            coinCount += 1;
             saveCoins();
-            if (value === 2) flash("+2 COINS");
-            syncMeta();
-          }
-
-          // Track power-up pickups
-          for (let i = trackPickups.length - 1; i >= 0; i--) {
-            const pickup = trackPickups[i]!;
-            if (Math.abs(pickup.d - distance) > 1) continue;
-            if (Math.abs(pickup.lateral - lateralPos) > 1.1) continue;
-            if (ballHeight > 1.5) continue;
-            scene.remove(pickup.group);
-            trackPickups.splice(i, 1);
-            if (pickup.type === "shield") {
-              timers.shield = Math.max(timers.shield, TRACK_PICKUPS.shield.duration);
-              (ball.material as THREE.MeshStandardMaterial).color.set(0xffd700);
-            } else {
-              doubleCoinsTimer = Math.max(
-                doubleCoinsTimer,
-                TRACK_PICKUPS.doubleCoins.duration
-              );
-            }
-            flash(`${TRACK_PICKUPS[pickup.type].label} collected!`);
             syncMeta();
           }
 
@@ -776,11 +581,6 @@ export function SlopeGame() {
           for (const b of blocks) {
             if (!b.active) continue;
             const dz = b.d - distance;
-            if (!b.countedAsDodged && dz < -(b.size / 2 + 0.65)) {
-              b.countedAsDodged = true;
-              registerDodge();
-              continue;
-            }
             if (Math.abs(dz) > b.size / 2 + 0.5) continue;
             if (Math.abs(b.lateral - lateralPos) > b.size / 2 + 0.5) continue;
             if (ballHeight > b.size) continue;
@@ -789,7 +589,6 @@ export function SlopeGame() {
               if (timers.shield > 0) {
                 b.active = false;
                 scene.remove(b.mesh);
-                resetCombo();
                 flash("Smashed!");
                 continue;
               }
@@ -797,7 +596,6 @@ export function SlopeGame() {
               break;
             }
             b.active = false;
-            resetCombo();
             if (b.type === "slow") {
               speedModifier = -7;
               scene.remove(b.mesh);
@@ -825,11 +623,6 @@ export function SlopeGame() {
             coins: coinCount,
             highScore,
             timers: { ...timers },
-            doubleCoins: doubleCoinsTimer,
-            combo,
-            comboMultiplier: comboMultiplier(),
-            comboWindow,
-            comboSpeedBonus: comboSpeedBonus(),
           }));
         }
 
@@ -851,15 +644,6 @@ export function SlopeGame() {
             -(c.d - distance)
           );
           c.mesh.rotation.y += delta * 3;
-        }
-        for (const pickup of trackPickups) {
-          pickup.group.position.set(
-            pathX(pickup.d) + pickup.lateral,
-            pathY(pickup.d) + 1.05,
-            -(pickup.d - distance)
-          );
-          pickup.group.rotation.y += delta * 2.4;
-          pickup.group.rotation.z = Math.sin(now * 0.004 + pickup.d) * 0.12;
         }
 
         const ballWorldX = pathX(distance) + lateralPos;
@@ -904,7 +688,6 @@ export function SlopeGame() {
         container.removeEventListener("touchstart", handleTouchStart);
         container.removeEventListener("touchmove", handleTouchMove);
         renderer.dispose();
-        buyRef.current = null;
         container.removeChild(renderer.domElement);
       };
     }
@@ -923,7 +706,7 @@ export function SlopeGame() {
 
       {/* HUD */}
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-6">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between">
           <div className="rounded-lg bg-black/40 px-4 py-2 backdrop-blur-sm">
             <p className="text-xs uppercase tracking-widest text-cyan-400">Score</p>
             <p className="font-mono text-3xl font-bold text-white">
@@ -947,40 +730,6 @@ export function SlopeGame() {
             </p>
           </div>
         </div>
-
-        {gameState.isPlaying && (
-          <div className="mx-auto mt-3 flex w-full max-w-md flex-col items-center gap-2 font-mono">
-            <div className="flex items-center gap-2">
-              {gameState.timers.shield > 0 && (
-                <span className="rounded border border-cyan-300/70 bg-cyan-950/70 px-2 py-1 text-xs font-bold text-cyan-200">
-                  ◇ SHIELD {gameState.timers.shield.toFixed(1)}s
-                </span>
-              )}
-              {gameState.doubleCoins > 0 && (
-                <span className="rounded border border-yellow-300/70 bg-yellow-950/70 px-2 py-1 text-xs font-bold text-yellow-200">
-                  ◎ x2 COINS {gameState.doubleCoins.toFixed(1)}s
-                </span>
-              )}
-            </div>
-            {gameState.combo > 0 && (
-              <div className="w-full rounded-md border border-fuchsia-400/60 bg-black/55 px-3 py-2 backdrop-blur-sm">
-                <div className="mb-1 flex items-center justify-between text-xs font-bold text-fuchsia-200">
-                  <span>{gameState.combo} DODGE COMBO</span>
-                  <span>
-                    x{gameState.comboMultiplier.toFixed(2)} · +
-                    {gameState.comboSpeedBonus.toFixed(1)} SPEED
-                  </span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
-                  <div
-                    className="h-full rounded-full bg-fuchsia-400 transition-[width] duration-100"
-                    style={{ width: `${(gameState.comboWindow / COMBO_WINDOW) * 100}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {gameState.message && (
           <p className="text-center font-mono text-4xl font-black text-white drop-shadow-[0_0_12px_rgba(0,255,255,0.8)]">
@@ -1056,15 +805,6 @@ export function SlopeGame() {
               </div>
               <div className="flex items-center gap-2 text-white/80">
                 <span className="h-3 w-3 rounded-full bg-[#ffd700]" /> Gold — collect coins
-              </div>
-              <div className="flex items-center gap-2 text-white/80">
-                <span className="h-3 w-3 rotate-45 bg-cyan-300" /> Cyan diamond — shield
-              </div>
-              <div className="flex items-center gap-2 text-white/80">
-                <span className="font-bold text-yellow-300">◎◎</span> Double gold — 2× coins
-              </div>
-              <div className="col-span-2 border-t border-white/10 pt-2 text-center text-fuchsia-200">
-                Dodge blocks in a row to build combo speed. A hit or slow dodge streak resets it.
               </div>
             </div>
             <div className="mx-auto mb-8 max-w-md rounded-xl border border-white/10 bg-white/5 p-4 text-left text-sm">
