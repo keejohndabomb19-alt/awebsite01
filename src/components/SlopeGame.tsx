@@ -537,10 +537,14 @@ export function SlopeGame() {
           const acceleration = 34;
           if (keys.left) lateralVel -= acceleration * delta;
           if (keys.right) lateralVel += acceleration * delta;
+          if (keys.left || keys.right) {
+            lastInput = "key";
+            targetLateral = lateralPos;
+          }
           lateralVel *= Math.exp(-8 * delta);
           lateralVel = Math.max(-maxSpeed, Math.min(maxSpeed, lateralVel));
           lateralPos += lateralVel * delta;
-          if (!keys.left && !keys.right) {
+          if (!keys.left && !keys.right && lastInput === "touch") {
             lateralPos += (targetLateral - lateralPos) * 5 * delta;
           }
           lateralPos = Math.max(
