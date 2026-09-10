@@ -327,12 +327,19 @@ export function SlopeGame() {
       // ---- Coins & power-ups -------------------------------------------
       const stored = Number(window.localStorage.getItem("slope-coins") ?? "0");
       let coinCount = Number.isFinite(stored) ? stored : 0;
+      const storedBest = Number(window.localStorage.getItem("slope-highscore") ?? "0");
+      let highScore = Number.isFinite(storedBest) ? storedBest : 0;
       const timers: Record<PowerUp, number> = { speed: 0, jump: 0, shield: 0 };
 
       function saveCoins() {
         window.localStorage.setItem("slope-coins", String(coinCount));
       }
       saveCoins();
+
+      function saveHighScore() {
+        window.localStorage.setItem("slope-highscore", String(highScore));
+      }
+      saveHighScore();
 
       function flash(msg: string) {
         messageTimer = 1.2;
