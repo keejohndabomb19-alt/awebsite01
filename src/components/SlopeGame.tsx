@@ -444,6 +444,7 @@ export function SlopeGame() {
         lateralPos = 0;
         targetLateral = 0;
         lateralVel = 0;
+        lastInput = "key";
         ballHeight = 0;
         verticalVel = 0;
         timers.speed = 0;
