@@ -311,6 +311,7 @@ export function SlopeGame() {
       let lateralPos = 0;
       let lateralVel = 0;
       let targetLateral = 0;
+      let lastInput: "key" | "touch" = "key";
       let distance = 0;
       let ballHeight = 0;
       let verticalVel = 0;
@@ -399,6 +400,7 @@ export function SlopeGame() {
         touchStartX = e.touches[0]!.clientX;
       }
       function handleTouchMove(e: TouchEvent) {
+        lastInput = "touch";
         const deltaX = e.touches[0]!.clientX - touchStartX;
         targetLateral = Math.max(
           -trackWidth / 2 + 0.6,
@@ -442,6 +444,7 @@ export function SlopeGame() {
         lateralPos = 0;
         targetLateral = 0;
         lateralVel = 0;
+        lastInput = "key";
         ballHeight = 0;
         verticalVel = 0;
         timers.speed = 0;
@@ -535,10 +538,14 @@ export function SlopeGame() {
           const acceleration = 34;
           if (keys.left) lateralVel -= acceleration * delta;
           if (keys.right) lateralVel += acceleration * delta;
+          if (keys.left || keys.right) {
+            lastInput = "key";
+            targetLateral = lateralPos;
+          }
           lateralVel *= Math.exp(-8 * delta);
           lateralVel = Math.max(-maxSpeed, Math.min(maxSpeed, lateralVel));
           lateralPos += lateralVel * delta;
-          if (!keys.left && !keys.right) {
+          if (!keys.left && !keys.right && lastInput === "touch") {
             lateralPos += (targetLateral - lateralPos) * 5 * delta;
           }
           lateralPos = Math.max(
