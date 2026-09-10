@@ -8,6 +8,8 @@ interface GameState {
   isGameOver: boolean;
   message: string;
   coins: number;
+  highScore: number;
+  newBest: boolean;
   timers: { speed: number; jump: number; shield: number };
 }
 
@@ -54,6 +56,8 @@ export function SlopeGame() {
     isGameOver: false,
     message: "",
     coins: 0,
+    highScore: 0,
+    newBest: false,
     timers: { speed: 0, jump: 0, shield: 0 },
   });
 
