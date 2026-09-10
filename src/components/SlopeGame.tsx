@@ -705,6 +705,9 @@ export function SlopeGame() {
             <p className="font-mono text-3xl font-bold text-white">
               {gameState.score.toLocaleString()}
             </p>
+            <p className="font-mono text-xs text-cyan-200/70">
+              Best {gameState.highScore.toLocaleString()}
+            </p>
           </div>
           <div className="rounded-lg bg-black/40 px-4 py-2 text-center backdrop-blur-sm">
             <p className="text-xs uppercase tracking-widest text-yellow-400">Coins</p>
@@ -774,6 +777,12 @@ export function SlopeGame() {
             <p className="mb-6 text-lg text-white/70">
               Ride the curving, diving neon track.
             </p>
+            <div className="mx-auto mb-6 flex max-w-md items-center justify-center gap-6 font-mono text-sm">
+              <p className="text-cyan-300">
+                Top score: {gameState.highScore.toLocaleString()}
+              </p>
+              <p className="text-yellow-300">Coins: {gameState.coins}</p>
+            </div>
             <div className="mx-auto mb-8 grid max-w-md grid-cols-2 gap-3 text-left text-sm">
               <div className="flex items-center gap-2 text-white/80">
                 <span className="h-3 w-3 rounded-sm bg-[#ff2244]" /> Red — crash
@@ -822,9 +831,17 @@ export function SlopeGame() {
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="text-center">
             <h2 className="mb-2 text-6xl font-black text-red-500">CRASHED</h2>
+            {gameState.newBest && (
+              <p className="mb-2 animate-pulse font-mono text-lg font-bold text-yellow-300">
+                ★ New top score! ★
+              </p>
+            )}
             <p className="mb-2 text-xl text-white">Final Score</p>
-            <p className="mb-8 font-mono text-5xl font-bold text-white">
+            <p className="mb-2 font-mono text-5xl font-bold text-white">
               {gameState.score.toLocaleString()}
+            </p>
+            <p className="mb-8 font-mono text-sm text-cyan-200/70">
+              Top score: {gameState.highScore.toLocaleString()}
             </p>
             <button
               onClick={() =>
