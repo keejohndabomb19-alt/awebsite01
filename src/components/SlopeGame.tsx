@@ -400,6 +400,7 @@ export function SlopeGame() {
         touchStartX = e.touches[0]!.clientX;
       }
       function handleTouchMove(e: TouchEvent) {
+        lastInput = "touch";
         const deltaX = e.touches[0]!.clientX - touchStartX;
         targetLateral = Math.max(
           -trackWidth / 2 + 0.6,
