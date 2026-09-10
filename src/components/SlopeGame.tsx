@@ -350,6 +350,7 @@ export function SlopeGame() {
         setGameState((s) => ({
           ...s,
           coins: coinCount,
+          highScore,
           timers: { ...timers },
         }));
       }
@@ -417,7 +418,20 @@ export function SlopeGame() {
       function gameOver() {
         isPlaying = false;
         isGameOver = true;
-        setGameState((s) => ({ ...s, isPlaying: false, isGameOver: true }));
+        const finalScore = Math.floor(score);
+        let newBest = false;
+        if (finalScore > highScore) {
+          highScore = finalScore;
+          newBest = true;
+          saveHighScore();
+        }
+        setGameState((s) => ({
+          ...s,
+          isPlaying: false,
+          isGameOver: true,
+          highScore,
+          newBest,
+        }));
       }
 
       function resetGame() {
