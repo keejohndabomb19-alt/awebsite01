@@ -122,7 +122,7 @@ export function SlopeGame() {
       renderer.setSize(container.clientWidth, container.clientHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
       container.appendChild(renderer.domElement);
 
       scene.add(new THREE.AmbientLight(0x404080, 0.6));
@@ -400,6 +400,9 @@ export function SlopeGame() {
             (lane) =>
               !blocks.some(
                 (b) => b.d === d && Math.abs(b.lateral - lane * laneWidth) < 1.2
+              ) &&
+              !coins.some(
+                (coin) => coin.d === d && Math.abs(coin.lateral - lane * laneWidth) < 1.2
               )
           );
           const selectedLane = openLanes[Math.floor(Math.random() * openLanes.length)] ?? 0;
