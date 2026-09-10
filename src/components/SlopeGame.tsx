@@ -311,6 +311,7 @@ export function SlopeGame() {
       let lateralPos = 0;
       let lateralVel = 0;
       let targetLateral = 0;
+      let lastInput: "key" | "touch" = "key";
       let distance = 0;
       let ballHeight = 0;
       let verticalVel = 0;
