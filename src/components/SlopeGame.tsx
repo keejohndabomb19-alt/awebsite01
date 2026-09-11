@@ -882,7 +882,7 @@ export function SlopeGame({
 
       {/* Game over screen */}
       {gameState.isGameOver && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="absolute inset-0 flex items-center justify-center overflow-y-auto bg-black/80 py-8 backdrop-blur-sm">
           <div className="text-center">
             <h2 className="mb-2 text-6xl font-black text-red-500">CRASHED</h2>
             {gameState.newBest && (
