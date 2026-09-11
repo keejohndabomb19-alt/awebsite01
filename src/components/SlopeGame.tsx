@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type * as THREE from "three";
+import { Leaderboard, leaderboardQueryKey } from "./Leaderboard";
+import { submitScore } from "@/lib/leaderboard.functions";
+import { getPlayerId } from "@/lib/player";
+
 
 interface GameState {
   score: number;
@@ -46,9 +51,17 @@ const POWER_UPS: Record<
   },
 };
 
-export function SlopeGame() {
+export function SlopeGame({
+  playerName,
+  onChangeName,
+}: {
+  playerName: string;
+  onChangeName: () => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const buyRef = useRef<((p: PowerUp) => void) | null>(null);
+  const queryClient = useQueryClient();
+
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     speed: 0,
