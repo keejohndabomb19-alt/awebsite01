@@ -442,11 +442,13 @@ export function SlopeGame({
         }
         setGameState((s) => ({
           ...s,
+          score: finalScore,
           isPlaying: false,
           isGameOver: true,
           highScore,
           newBest,
         }));
+
       }
 
       function resetGame() {
