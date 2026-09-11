@@ -810,13 +810,22 @@ export function SlopeGame({
 
       {/* Start screen */}
       {!gameState.isPlaying && !gameState.isGameOver && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+        <div className="absolute inset-0 flex items-center justify-center overflow-y-auto bg-black/70 py-8 backdrop-blur-sm">
           <div className="text-center">
             <h1 className="mb-2 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-7xl font-black tracking-tighter text-transparent">
               SLOPE
             </h1>
-            <p className="mb-6 text-lg text-white/70">
+            <p className="mb-4 text-lg text-white/70">
               Ride the curving, diving neon track.
+            </p>
+            <p className="mb-6 text-sm text-white/60">
+              Playing as <span className="font-mono text-cyan-300">{playerName}</span>{" "}
+              <button
+                onClick={onChangeName}
+                className="ml-1 underline underline-offset-4 hover:text-white"
+              >
+                change name
+              </button>
             </p>
             <div className="mx-auto mb-6 flex max-w-md items-center justify-center gap-6 font-mono text-sm">
               <p className="text-cyan-300">
@@ -824,6 +833,10 @@ export function SlopeGame({
               </p>
               <p className="text-yellow-300">Coins: {gameState.coins}</p>
             </div>
+            <div className="mb-6">
+              <Leaderboard />
+            </div>
+
             <div className="mx-auto mb-8 grid max-w-md grid-cols-2 gap-3 text-left text-sm">
               <div className="flex items-center gap-2 text-white/80">
                 <span className="h-3 w-3 rounded-sm bg-[#ff2244]" /> Red — crash
