@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.submit_score(uuid, text, integer) FROM anon, authenticated, public;
