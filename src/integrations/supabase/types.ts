@@ -14,13 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      leaderboard: {
+        Row: {
+          best_distance: number
+          created_at: string
+          id: string
+          name: string
+          player_id: string
+          updated_at: string
+        }
+        Insert: {
+          best_distance?: number
+          created_at?: string
+          id?: string
+          name: string
+          player_id: string
+          updated_at?: string
+        }
+        Update: {
+          best_distance?: number
+          created_at?: string
+          id?: string
+          name?: string
+          player_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      submit_score: {
+        Args: { _distance: number; _name: string; _player_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
