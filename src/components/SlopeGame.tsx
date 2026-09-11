@@ -715,6 +715,25 @@ export function SlopeGame({
     };
   }, []);
 
+  // Send the finished run to the worldwide leaderboard
+  useEffect(() => {
+    if (!gameState.isGameOver) return;
+    const distance = gameState.score;
+    if (distance <= 0) return;
+    let cancelled = false;
+    submitScore({
+      data: { playerId: getPlayerId(), name: playerName, distance },
+    })
+      .then(() => {
+        if (!cancelled) queryClient.invalidateQueries({ queryKey: leaderboardQueryKey });
+      })
+      .catch((err) => console.error("leaderboard submit failed", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [gameState.isGameOver, gameState.score, playerName, queryClient]);
+
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#0a0a0f]">
       <div ref={containerRef} className="h-full w-full" />
