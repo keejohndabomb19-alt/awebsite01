@@ -894,9 +894,13 @@ export function SlopeGame({
             <p className="mb-2 font-mono text-5xl font-bold text-white">
               {gameState.score.toLocaleString()}
             </p>
-            <p className="mb-8 font-mono text-sm text-cyan-200/70">
+            <p className="mb-4 font-mono text-sm text-cyan-200/70">
               Top score: {gameState.highScore.toLocaleString()}
             </p>
+            <div className="mb-6">
+              <Leaderboard />
+            </div>
+
             <button
               onClick={() =>
                 window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }))
