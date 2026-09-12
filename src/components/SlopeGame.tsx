@@ -723,7 +723,8 @@ export function SlopeGame({
       cancelled = true;
       cleanupFn?.();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapId]);
 
   // Send the finished run to the worldwide leaderboard
   useEffect(() => {
