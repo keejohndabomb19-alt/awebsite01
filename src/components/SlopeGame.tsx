@@ -113,7 +113,7 @@ export function SlopeGame({
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       container.appendChild(renderer.domElement);
 
-      scene.add(new THREE.AmbientLight(0x404080, 0.6));
+      scene.add(new THREE.AmbientLight(map.ambient, 0.6));
 
       const dirLight = new THREE.DirectionalLight(0xaaccff, 1.2);
       dirLight.position.set(10, 30, 10);
