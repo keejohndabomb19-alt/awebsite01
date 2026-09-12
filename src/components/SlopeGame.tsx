@@ -115,7 +115,7 @@ export function SlopeGame({
 
       scene.add(new THREE.AmbientLight(map.ambient, 0.6));
 
-      const dirLight = new THREE.DirectionalLight(0xaaccff, 1.2);
+      const dirLight = new THREE.DirectionalLight(map.dirLight, 1.2);
       dirLight.position.set(10, 30, 10);
       dirLight.castShadow = true;
       dirLight.shadow.mapSize.width = 2048;
