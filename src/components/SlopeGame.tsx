@@ -4,6 +4,7 @@ import type * as THREE from "three";
 import { Leaderboard, leaderboardQueryKey } from "./Leaderboard";
 import { submitScore } from "@/lib/leaderboard.functions";
 import { getPlayerId } from "@/lib/player";
+import { getMap } from "@/lib/maps";
 
 
 interface GameState {
