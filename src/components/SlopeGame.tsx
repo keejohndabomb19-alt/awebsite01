@@ -54,10 +54,16 @@ const POWER_UPS: Record<
 export function SlopeGame({
   playerName,
   onChangeName,
+  mapId,
+  onChangeMap,
 }: {
   playerName: string;
   onChangeName: () => void;
+  mapId: string;
+  onChangeMap: () => void;
 }) {
+  const map = getMap(mapId);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const buyRef = useRef<((p: PowerUp) => void) | null>(null);
   const queryClient = useQueryClient();
