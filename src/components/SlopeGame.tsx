@@ -826,8 +826,8 @@ export function SlopeGame({
             <h1 className="mb-2 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-7xl font-black tracking-tighter text-transparent">
               SLOPE
             </h1>
-            <p className="mb-4 text-lg text-white/70">
-              Ride the curving, diving neon track.
+            <p className="mb-4 text-lg" style={{ color: map.swatch }}>
+              {map.name} — {map.tagline}
             </p>
             <p className="mb-6 text-sm text-white/60">
               Playing as <span className="font-mono text-cyan-300">{playerName}</span>{" "}
@@ -836,6 +836,13 @@ export function SlopeGame({
                 className="ml-1 underline underline-offset-4 hover:text-white"
               >
                 change name
+              </button>
+              {" · "}
+              <button
+                onClick={onChangeMap}
+                className="underline underline-offset-4 hover:text-white"
+              >
+                change map
               </button>
             </p>
             <div className="mx-auto mb-6 flex max-w-md items-center justify-center gap-6 font-mono text-sm">
