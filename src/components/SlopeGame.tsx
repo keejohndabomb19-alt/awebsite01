@@ -95,8 +95,8 @@ export function SlopeGame({
       if (!container) return;
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0a0a0f);
-      scene.fog = new THREE.Fog(0x0a0a0f, 25, 130);
+      scene.background = new THREE.Color(map.bg);
+      scene.fog = new THREE.Fog(map.bg, map.fog[0], map.fog[1]);
 
       const camera = new THREE.PerspectiveCamera(
         62,
