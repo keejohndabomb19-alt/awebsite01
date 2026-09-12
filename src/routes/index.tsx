@@ -41,10 +41,13 @@ const Loading = ({ label }: { label: string }) => (
 function Index() {
   const [ready, setReady] = useState(false);
   const [name, setName] = useState<string | null>(null);
+  const [mapId, setMapId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [pickingMap, setPickingMap] = useState(false);
 
   useEffect(() => {
     setName(getPlayerName());
+    setMapId(getSavedMapId());
     setReady(true);
   }, []);
 
@@ -65,9 +68,29 @@ function Index() {
     );
   }
 
+  if (!mapId || pickingMap) {
+    return (
+      <div className="relative h-screen w-screen bg-[#0a0a0f]">
+        <MapSelect
+          currentId={mapId}
+          onSelect={(id) => {
+            setMapId(id);
+            setPickingMap(false);
+          }}
+          {...(mapId ? { onCancel: () => setPickingMap(false) } : {})}
+        />
+      </div>
+    );
+  }
+
   return (
     <Suspense fallback={<Loading label="Loading Slope..." />}>
-      <SlopeGame playerName={name} onChangeName={() => setEditing(true)} />
+      <SlopeGame
+        playerName={name}
+        onChangeName={() => setEditing(true)}
+        mapId={mapId}
+        onChangeMap={() => setPickingMap(true)}
+      />
     </Suspense>
   );
 }
