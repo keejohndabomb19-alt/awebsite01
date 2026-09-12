@@ -339,7 +339,7 @@ export function SlopeGame({
       let ballHeight = 0;
       let verticalVel = 0;
       let score = 0;
-      const baseSpeed = 15;
+      const baseSpeed = map.baseSpeed;
       let currentSpeed = baseSpeed;
       let speedModifier = 0;
       let isPlaying = false;
