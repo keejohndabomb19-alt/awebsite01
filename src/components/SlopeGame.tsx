@@ -151,21 +151,24 @@ export function SlopeGame({
       const visibleSegments = 55;
 
       const pathX = (d: number) =>
-        7 * Math.sin(d * 0.011) + 3.2 * Math.sin(d * 0.029 + 1.3);
+        map.curve.a * Math.sin(d * map.curve.af) +
+        map.curve.b * Math.sin(d * map.curve.bf + 1.3);
       const pathY = (d: number) =>
-        -2.6 * Math.sin(d * 0.008) - 1.4 * Math.sin(d * 0.021 + 0.7) - d * 0.012;
+        map.slope.a * Math.sin(d * map.slope.af) +
+        map.slope.b * Math.sin(d * map.slope.bf + 0.7) -
+        d * map.slope.drop;
 
       const trackMaterial = new THREE.MeshStandardMaterial({
-        color: 0x111116,
+        color: map.track,
         roughness: 0.6,
         metalness: 0.3,
       });
       const edgeMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ffff,
-        emissive: 0x00aaaa,
+        color: map.accent,
+        emissive: map.accent,
         emissiveIntensity: 0.8,
       });
-      const lineMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+      const lineMaterial = new THREE.MeshBasicMaterial({ color: map.accent });
 
       const blockStyles: Record<
         BlockType,
