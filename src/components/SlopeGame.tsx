@@ -559,8 +559,10 @@ export function SlopeGame({
           }
 
           // Steering
-          const maxSpeed = 12;
-          const acceleration = 34;
+          // Steering scales with forward speed: faster run = faster strafing
+          const speedFactor = Math.max(1, currentSpeed / 16);
+          const maxSpeed = 12 * speedFactor;
+          const acceleration = 34 * speedFactor;
           if (keys.left) lateralVel -= acceleration * delta;
           if (keys.right) lateralVel += acceleration * delta;
           if (keys.left || keys.right) {
