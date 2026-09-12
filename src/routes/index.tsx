@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { NameGate } from "@/components/NameGate";
 import { getPlayerName } from "@/lib/player";
+import { MapSelect } from "@/components/MapSelect";
+import { getSavedMapId } from "@/lib/maps";
 
 const SlopeGame = lazy(() =>
   import("../components/SlopeGame").then((mod) => ({ default: mod.SlopeGame }))
