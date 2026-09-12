@@ -4,6 +4,7 @@ import type * as THREE from "three";
 import { Leaderboard, leaderboardQueryKey } from "./Leaderboard";
 import { submitScore } from "@/lib/leaderboard.functions";
 import { getPlayerId } from "@/lib/player";
+import { getMap } from "@/lib/maps";
 
 
 interface GameState {
@@ -54,10 +55,16 @@ const POWER_UPS: Record<
 export function SlopeGame({
   playerName,
   onChangeName,
+  mapId,
+  onChangeMap,
 }: {
   playerName: string;
   onChangeName: () => void;
+  mapId: string;
+  onChangeMap: () => void;
 }) {
+  const map = getMap(mapId);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const buyRef = useRef<((p: PowerUp) => void) | null>(null);
   const queryClient = useQueryClient();
@@ -88,8 +95,8 @@ export function SlopeGame({
       if (!container) return;
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0a0a0f);
-      scene.fog = new THREE.Fog(0x0a0a0f, 25, 130);
+      scene.background = new THREE.Color(map.bg);
+      scene.fog = new THREE.Fog(map.bg, map.fog[0], map.fog[1]);
 
       const camera = new THREE.PerspectiveCamera(
         62,
@@ -106,9 +113,9 @@ export function SlopeGame({
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       container.appendChild(renderer.domElement);
 
-      scene.add(new THREE.AmbientLight(0x404080, 0.6));
+      scene.add(new THREE.AmbientLight(map.ambient, 0.6));
 
-      const dirLight = new THREE.DirectionalLight(0xaaccff, 1.2);
+      const dirLight = new THREE.DirectionalLight(map.dirLight, 1.2);
       dirLight.position.set(10, 30, 10);
       dirLight.castShadow = true;
       dirLight.shadow.mapSize.width = 2048;
@@ -121,7 +128,7 @@ export function SlopeGame({
       dirLight.shadow.camera.bottom = -40;
       scene.add(dirLight);
 
-      const neonLight = new THREE.PointLight(0x00ffff, 2.5, 50);
+      const neonLight = new THREE.PointLight(map.accent, 2.5, 50);
       scene.add(neonLight);
 
       // Ball
@@ -144,21 +151,24 @@ export function SlopeGame({
       const visibleSegments = 55;
 
       const pathX = (d: number) =>
-        7 * Math.sin(d * 0.011) + 3.2 * Math.sin(d * 0.029 + 1.3);
+        map.curve.a * Math.sin(d * map.curve.af) +
+        map.curve.b * Math.sin(d * map.curve.bf + 1.3);
       const pathY = (d: number) =>
-        -2.6 * Math.sin(d * 0.008) - 1.4 * Math.sin(d * 0.021 + 0.7) - d * 0.012;
+        map.slope.a * Math.sin(d * map.slope.af) +
+        map.slope.b * Math.sin(d * map.slope.bf + 0.7) -
+        d * map.slope.drop;
 
       const trackMaterial = new THREE.MeshStandardMaterial({
-        color: 0x111116,
+        color: map.track,
         roughness: 0.6,
         metalness: 0.3,
       });
       const edgeMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ffff,
-        emissive: 0x00aaaa,
+        color: map.accent,
+        emissive: map.accent,
         emissiveIntensity: 0.8,
       });
-      const lineMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+      const lineMaterial = new THREE.MeshBasicMaterial({ color: map.accent });
 
       const blockStyles: Record<
         BlockType,
@@ -329,7 +339,7 @@ export function SlopeGame({
       let ballHeight = 0;
       let verticalVel = 0;
       let score = 0;
-      const baseSpeed = 15;
+      const baseSpeed = map.baseSpeed;
       let currentSpeed = baseSpeed;
       let speedModifier = 0;
       let isPlaying = false;
@@ -713,7 +723,8 @@ export function SlopeGame({
       cancelled = true;
       cleanupFn?.();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapId]);
 
   // Send the finished run to the worldwide leaderboard
   useEffect(() => {
@@ -815,8 +826,8 @@ export function SlopeGame({
             <h1 className="mb-2 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-7xl font-black tracking-tighter text-transparent">
               SLOPE
             </h1>
-            <p className="mb-4 text-lg text-white/70">
-              Ride the curving, diving neon track.
+            <p className="mb-4 text-lg" style={{ color: map.swatch }}>
+              {map.name} — {map.tagline}
             </p>
             <p className="mb-6 text-sm text-white/60">
               Playing as <span className="font-mono text-cyan-300">{playerName}</span>{" "}
@@ -825,6 +836,13 @@ export function SlopeGame({
                 className="ml-1 underline underline-offset-4 hover:text-white"
               >
                 change name
+              </button>
+              {" · "}
+              <button
+                onClick={onChangeMap}
+                className="underline underline-offset-4 hover:text-white"
+              >
+                change map
               </button>
             </p>
             <div className="mx-auto mb-6 flex max-w-md items-center justify-center gap-6 font-mono text-sm">
