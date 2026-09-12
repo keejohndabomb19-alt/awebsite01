@@ -128,7 +128,7 @@ export function SlopeGame({
       dirLight.shadow.camera.bottom = -40;
       scene.add(dirLight);
 
-      const neonLight = new THREE.PointLight(0x00ffff, 2.5, 50);
+      const neonLight = new THREE.PointLight(map.accent, 2.5, 50);
       scene.add(neonLight);
 
       // Ball
