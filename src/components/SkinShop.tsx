@@ -1,0 +1,116 @@
+import { useState } from "react";
+import {
+  SKINS,
+  getCoins,
+  getOwnedSkins,
+  getSelectedSkinId,
+  ownSkin,
+  saveSkinId,
+  setCoins,
+} from "@/lib/skins";
+
+export function SkinShop({
+  coins,
+  onClose,
+  onChange,
+}: {
+  coins: number;
+  onClose: () => void;
+  /** Called after a purchase or equip so the game can sync coins + skin. */
+  onChange: (skinId: string, coins: number) => void;
+}) {
+  const [owned, setOwned] = useState<string[]>(() => getOwnedSkins());
+  const [selected, setSelected] = useState<string>(() => getSelectedSkinId());
+  const [balance, setBalance] = useState<number>(() => Math.max(coins, getCoins()));
+  const [note, setNote] = useState("");
+
+  function equip(id: string) {
+    saveSkinId(id);
+    setSelected(id);
+    setNote("");
+    onChange(id, balance);
+  }
+
+  function buy(id: string, price: number) {
+    if (balance < price) {
+      setNote("Not enough coins — collect more gold coins on the slope.");
+      return;
+    }
+    const next = balance - price;
+    setCoins(next);
+    setBalance(next);
+    const list = ownSkin(id);
+    setOwned(list);
+    saveSkinId(id);
+    setSelected(id);
+    setNote("");
+    onChange(id, next);
+  }
+
+  return (
+    <div className="absolute inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/90 px-4 py-8 backdrop-blur-sm">
+      <div className="w-full max-w-3xl text-center">
+        <h2 className="mb-2 bg-gradient-to-r from-yellow-300 to-pink-400 bg-clip-text text-5xl font-black tracking-tighter text-transparent">
+          SKIN SHOP
+        </h2>
+        <p className="mb-6 font-mono text-yellow-300">You have {balance} coins</p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {SKINS.map((s) => {
+            const isOwned = owned.includes(s.id);
+            const isOn = selected === s.id;
+            return (
+              <div
+                key={s.id}
+                style={{ borderColor: s.swatch }}
+                className={`rounded-xl border bg-black/50 p-5 text-left ${
+                  isOn ? "ring-2 ring-white/70" : ""
+                }`}
+              >
+                <div className="mb-2 flex items-center gap-3">
+                  <span
+                    className="h-5 w-5 rounded-full"
+                    style={{ backgroundColor: s.swatch }}
+                  />
+                  <span className="text-lg font-bold" style={{ color: s.swatch }}>
+                    {s.name}
+                  </span>
+                </div>
+                <p className="mb-4 text-sm text-white/70">{s.description}</p>
+                {isOn ? (
+                  <span className="inline-block rounded-full bg-white/15 px-4 py-1.5 text-sm font-bold text-white">
+                    Equipped
+                  </span>
+                ) : isOwned ? (
+                  <button
+                    onClick={() => equip(s.id)}
+                    className="rounded-full bg-white/90 px-4 py-1.5 text-sm font-bold text-black transition hover:bg-white"
+                  >
+                    Use this skin
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => buy(s.id, s.price)}
+                    disabled={balance < s.price}
+                    className="rounded-full bg-yellow-400 px-4 py-1.5 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Buy — {s.price} coins
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {note && <p className="mt-4 text-sm text-red-300">{note}</p>}
+
+        <button
+          onClick={onClose}
+          className="mt-8 rounded-full bg-cyan-500 px-8 py-3 font-bold text-black transition hover:bg-cyan-400"
+        >
+          Back to game
+        </button>
+      </div>
+    </div>
+  );
+}
