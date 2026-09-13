@@ -5,6 +5,8 @@ import { Leaderboard, leaderboardQueryKey } from "./Leaderboard";
 import { submitScore } from "@/lib/leaderboard.functions";
 import { getPlayerId } from "@/lib/player";
 import { getMap } from "@/lib/maps";
+import { SkinShop } from "./SkinShop";
+import { getSelectedSkinId, getSkin } from "@/lib/skins";
 
 
 interface GameState {
@@ -67,6 +69,8 @@ export function SlopeGame({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const buyRef = useRef<((p: PowerUp) => void) | null>(null);
+  const skinRef = useRef<((skinId: string, coins: number) => void) | null>(null);
+  const [shopOpen, setShopOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const [gameState, setGameState] = useState<GameState>({
@@ -131,19 +135,55 @@ export function SlopeGame({
       const neonLight = new THREE.PointLight(map.accent, 2.5, 50);
       scene.add(neonLight);
 
-      // Ball
+      // Ball (shape + material come from the equipped skin)
+      function skinGeometry(shape: string) {
+        switch (shape) {
+          case "torus": {
+            const g = new THREE.TorusGeometry(0.36, 0.17, 20, 40);
+            g.rotateY(Math.PI / 2);
+            return g;
+          }
+          case "icosa":
+            return new THREE.IcosahedronGeometry(0.55, 0);
+          case "box":
+            return new THREE.BoxGeometry(0.8, 0.8, 0.8);
+          case "dodeca":
+            return new THREE.DodecahedronGeometry(0.55, 0);
+          case "capsule": {
+            const g = new THREE.CapsuleGeometry(0.36, 0.4, 8, 20);
+            g.rotateZ(Math.PI / 2);
+            return g;
+          }
+          default:
+            return new THREE.SphereGeometry(0.5, 32, 32);
+        }
+      }
+
+      let skin = getSkin(getSelectedSkinId());
       const ball = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 32, 32),
+        skinGeometry(skin.shape),
         new THREE.MeshStandardMaterial({
-          color: 0x00ffff,
-          emissive: 0x0088aa,
-          emissiveIntensity: 0.5,
-          roughness: 0.2,
-          metalness: 0.8,
+          color: skin.color,
+          emissive: skin.emissive,
+          emissiveIntensity: skin.emissiveIntensity,
+          roughness: skin.roughness,
+          metalness: skin.metalness,
         })
       );
       ball.castShadow = true;
       scene.add(ball);
+
+      function applySkin(id: string) {
+        skin = getSkin(id);
+        ball.geometry.dispose();
+        ball.geometry = skinGeometry(skin.shape);
+        const mat = ball.material as THREE.MeshStandardMaterial;
+        mat.color.set(skin.color);
+        mat.emissive.set(skin.emissive);
+        mat.emissiveIntensity = skin.emissiveIntensity;
+        mat.roughness = skin.roughness;
+        mat.metalness = skin.metalness;
+      }
 
       // ---- Track path (curves + slopes) -------------------------------
       const trackWidth = 10;
@@ -398,6 +438,16 @@ export function SlopeGame({
       }
       buyRef.current = buyPowerUp;
 
+      skinRef.current = (skinId: string, newCoins: number) => {
+        applySkin(skinId);
+        if (timers.shield > 0) {
+          (ball.material as THREE.MeshStandardMaterial).color.set(0xffd700);
+        }
+        coinCount = newCoins;
+        saveCoins();
+        syncMeta();
+      };
+
       const keys = { left: false, right: false };
 
       function handleKeyDown(e: KeyboardEvent) {
@@ -475,7 +525,7 @@ export function SlopeGame({
         timers.speed = 0;
         timers.jump = 0;
         timers.shield = 0;
-        (ball.material as THREE.MeshStandardMaterial).color.set(0x00ffff);
+        (ball.material as THREE.MeshStandardMaterial).color.set(skin.color);
 
         segments.forEach((s) => scene.remove(s.group));
         blocks.forEach((b) => scene.remove(b.mesh));
@@ -516,7 +566,7 @@ export function SlopeGame({
               if (timers[p] === 0) {
                 expired = true;
                 if (p === "shield") {
-                  (ball.material as THREE.MeshStandardMaterial).color.set(0x00ffff);
+                  (ball.material as THREE.MeshStandardMaterial).color.set(skin.color);
                 }
                 flash(`${POWER_UPS[p].label} over`);
               }
@@ -821,6 +871,14 @@ export function SlopeGame({
         </div>
       </div>
 
+      {shopOpen && (
+        <SkinShop
+          coins={gameState.coins}
+          onClose={() => setShopOpen(false)}
+          onChange={(skinId, coins) => skinRef.current?.(skinId, coins)}
+        />
+      )}
+
       {/* Start screen */}
       {!gameState.isPlaying && !gameState.isGameOver && (
         <div className="absolute inset-0 flex items-center justify-center overflow-y-auto bg-black/70 py-8 backdrop-blur-sm">
@@ -847,6 +905,12 @@ export function SlopeGame({
                 change map
               </button>
             </p>
+            <button
+              onClick={() => setShopOpen(true)}
+              className="mb-6 rounded-full border border-yellow-400/60 bg-yellow-400/10 px-6 py-2 font-bold text-yellow-300 transition hover:bg-yellow-400/20"
+            >
+              Skin shop
+            </button>
             <div className="mx-auto mb-6 flex max-w-md items-center justify-center gap-6 font-mono text-sm">
               <p className="text-cyan-300">
                 Top score: {gameState.highScore.toLocaleString()}
