@@ -871,6 +871,14 @@ export function SlopeGame({
         </div>
       </div>
 
+      {shopOpen && (
+        <SkinShop
+          coins={gameState.coins}
+          onClose={() => setShopOpen(false)}
+          onChange={(skinId, coins) => skinRef.current?.(skinId, coins)}
+        />
+      )}
+
       {/* Start screen */}
       {!gameState.isPlaying && !gameState.isGameOver && (
         <div className="absolute inset-0 flex items-center justify-center overflow-y-auto bg-black/70 py-8 backdrop-blur-sm">
@@ -897,6 +905,12 @@ export function SlopeGame({
                 change map
               </button>
             </p>
+            <button
+              onClick={() => setShopOpen(true)}
+              className="mb-6 rounded-full border border-yellow-400/60 bg-yellow-400/10 px-6 py-2 font-bold text-yellow-300 transition hover:bg-yellow-400/20"
+            >
+              Skin shop
+            </button>
             <div className="mx-auto mb-6 flex max-w-md items-center justify-center gap-6 font-mono text-sm">
               <p className="text-cyan-300">
                 Top score: {gameState.highScore.toLocaleString()}
