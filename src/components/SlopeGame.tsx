@@ -7,6 +7,7 @@ import { getPlayerId } from "@/lib/player";
 import { getMap } from "@/lib/maps";
 import { SkinShop } from "./SkinShop";
 import { getSelectedSkinId, getSkin } from "@/lib/skins";
+import { createSkinModel, disposeSkinModel, setSkinShield } from "@/lib/skin-models";
 
 
 interface GameState {
@@ -135,54 +136,20 @@ export function SlopeGame({
       const neonLight = new THREE.PointLight(map.accent, 2.5, 50);
       scene.add(neonLight);
 
-      // Ball (shape + material come from the equipped skin)
-      function skinGeometry(shape: string) {
-        switch (shape) {
-          case "torus": {
-            const g = new THREE.TorusGeometry(0.36, 0.17, 20, 40);
-            g.rotateY(Math.PI / 2);
-            return g;
-          }
-          case "icosa":
-            return new THREE.IcosahedronGeometry(0.55, 0);
-          case "box":
-            return new THREE.BoxGeometry(0.8, 0.8, 0.8);
-          case "dodeca":
-            return new THREE.DodecahedronGeometry(0.55, 0);
-          case "capsule": {
-            const g = new THREE.CapsuleGeometry(0.36, 0.4, 8, 20);
-            g.rotateZ(Math.PI / 2);
-            return g;
-          }
-          default:
-            return new THREE.SphereGeometry(0.5, 32, 32);
-        }
-      }
-
       let skin = getSkin(getSelectedSkinId());
-      const ball = new THREE.Mesh(
-        skinGeometry(skin.shape),
-        new THREE.MeshStandardMaterial({
-          color: skin.color,
-          emissive: skin.emissive,
-          emissiveIntensity: skin.emissiveIntensity,
-          roughness: skin.roughness,
-          metalness: skin.metalness,
-        })
-      );
-      ball.castShadow = true;
+      let ball = createSkinModel(THREE, skin);
       scene.add(ball);
 
       function applySkin(id: string) {
         skin = getSkin(id);
-        ball.geometry.dispose();
-        ball.geometry = skinGeometry(skin.shape);
-        const mat = ball.material as THREE.MeshStandardMaterial;
-        mat.color.set(skin.color);
-        mat.emissive.set(skin.emissive);
-        mat.emissiveIntensity = skin.emissiveIntensity;
-        mat.roughness = skin.roughness;
-        mat.metalness = skin.metalness;
+        const position = ball.position.clone();
+        const rotation = ball.rotation.clone();
+        scene.remove(ball);
+        disposeSkinModel(ball);
+        ball = createSkinModel(THREE, skin);
+        ball.position.copy(position);
+        ball.rotation.copy(rotation);
+        scene.add(ball);
       }
 
       // ---- Track path (curves + slopes) -------------------------------
@@ -431,7 +398,7 @@ export function SlopeGame({
         saveCoins();
         timers[p] = info.duration;
         if (p === "shield") {
-          (ball.material as THREE.MeshStandardMaterial).color.set(0xffd700);
+          setSkinShield(ball, true);
         }
         flash(`${info.label} activated!`);
         syncMeta();
@@ -441,7 +408,7 @@ export function SlopeGame({
       skinRef.current = (skinId: string, newCoins: number) => {
         applySkin(skinId);
         if (timers.shield > 0) {
-          (ball.material as THREE.MeshStandardMaterial).color.set(0xffd700);
+          setSkinShield(ball, true);
         }
         coinCount = newCoins;
         saveCoins();
@@ -525,7 +492,7 @@ export function SlopeGame({
         timers.speed = 0;
         timers.jump = 0;
         timers.shield = 0;
-        (ball.material as THREE.MeshStandardMaterial).color.set(skin.color);
+        setSkinShield(ball, false);
 
         segments.forEach((s) => scene.remove(s.group));
         blocks.forEach((b) => scene.remove(b.mesh));
@@ -566,7 +533,7 @@ export function SlopeGame({
               if (timers[p] === 0) {
                 expired = true;
                 if (p === "shield") {
-                  (ball.material as THREE.MeshStandardMaterial).color.set(skin.color);
+                  setSkinShield(ball, false);
                 }
                 flash(`${POWER_UPS[p].label} over`);
               }
@@ -764,6 +731,7 @@ export function SlopeGame({
         window.removeEventListener("resize", handleResize);
         container.removeEventListener("touchstart", handleTouchStart);
         container.removeEventListener("touchmove", handleTouchMove);
+        disposeSkinModel(ball);
         renderer.dispose();
         container.removeChild(renderer.domElement);
       };

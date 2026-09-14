@@ -8,6 +8,7 @@ import {
   saveSkinId,
   setCoins,
 } from "@/lib/skins";
+import { SkinPreview } from "./SkinPreview";
 
 export function SkinShop({
   coins,
@@ -63,15 +64,14 @@ export function SkinShop({
               <div
                 key={s.id}
                 style={{ borderColor: s.swatch }}
-                className={`rounded-xl border bg-black/50 p-5 text-left ${
+                className={`overflow-hidden rounded-xl border bg-black/50 p-5 text-left ${
                   isOn ? "ring-2 ring-white/70" : ""
                 }`}
               >
+                <div className="mb-3 rounded-lg bg-white/5">
+                  <SkinPreview skin={s} />
+                </div>
                 <div className="mb-2 flex items-center gap-3">
-                  <span
-                    className="h-5 w-5 rounded-full"
-                    style={{ backgroundColor: s.swatch }}
-                  />
                   <span className="text-lg font-bold" style={{ color: s.swatch }}>
                     {s.name}
                   </span>
