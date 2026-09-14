@@ -8,9 +8,9 @@ function standard(
   options: ThreeTypes.MeshStandardMaterialParameters
 ) {
   const material = new THREE.MeshStandardMaterial(options);
-  material.userData.originalColor = material.color.getHex();
-  material.userData.originalEmissive = material.emissive.getHex();
-  material.userData.originalEmissiveIntensity = material.emissiveIntensity;
+  material.userData["originalColor"] = material.color.getHex();
+  material.userData["originalEmissive"] = material.emissive.getHex();
+  material.userData["originalEmissiveIntensity"] = material.emissiveIntensity;
   return material;
 }
 
@@ -27,7 +27,7 @@ function mesh(
 
 export function createSkinModel(THREE: ThreeModule, skin: SkinConfig) {
   const model = new THREE.Group();
-  model.userData.skinId = skin.id;
+  model.userData["skinId"] = skin.id;
 
   if (skin.id === "classic") {
     const core = mesh(
@@ -86,7 +86,7 @@ export function createSkinModel(THREE: ThreeModule, skin: SkinConfig) {
         THREE,
         new THREE.CapsuleGeometry(0.018, 0.07, 3, 5),
         standard(THREE, {
-          color: sprinkleColors[i % sprinkleColors.length],
+          color: sprinkleColors[i % sprinkleColors.length] ?? 0xffffff,
           roughness: 0.45,
         })
       );
@@ -141,7 +141,11 @@ export function createSkinModel(THREE: ThreeModule, skin: SkinConfig) {
       )
     );
     const pipMaterial = standard(THREE, { color: 0x201b24, roughness: 0.7 });
-    const patterns = [
+    const patterns: Array<{
+      axis: "x" | "y" | "z";
+      side: number;
+      points: Array<[number, number]>;
+    }> = [
       { axis: "x", side: 1, points: [[0, 0]] },
       { axis: "z", side: 1, points: [[-0.19, -0.19], [0.19, 0.19]] },
       { axis: "y", side: 1, points: [[-0.2, -0.2], [0, 0], [0.2, 0.2]] },
@@ -238,9 +242,9 @@ export function setSkinShield(model: ThreeTypes.Group, active: boolean) {
         mat.emissive.set(0xffa500);
         mat.emissiveIntensity = 1.2;
       } else {
-        mat.color.set(mat.userData.originalColor as number);
-        mat.emissive.set(mat.userData.originalEmissive as number);
-        mat.emissiveIntensity = mat.userData.originalEmissiveIntensity as number;
+        mat.color.set(mat.userData["originalColor"] as number);
+        mat.emissive.set(mat.userData["originalEmissive"] as number);
+        mat.emissiveIntensity = mat.userData["originalEmissiveIntensity"] as number;
       }
     }
   });
