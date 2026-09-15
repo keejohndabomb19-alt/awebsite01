@@ -614,7 +614,7 @@ export function SlopeGame({
             if (ballHeight > 1.4) continue;
             scene.remove(c.mesh);
             coins.splice(i, 1);
-            coinCount += 1;
+            coinCount += skin.coinMultiplier;
             coinsRef.current = coinCount;
             saveCoins();
             syncMeta();

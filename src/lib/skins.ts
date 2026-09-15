@@ -5,6 +5,8 @@ export interface SkinConfig {
   name: string;
   description: string;
   price: number;
+  /** Coins awarded for each coin collected while this skin is equipped. */
+  coinMultiplier: number;
   shape: SkinShape;
   color: number;
   emissive: number;
@@ -20,6 +22,7 @@ export const SKINS: SkinConfig[] = [
     name: "Neon Orb",
     description: "The original glowing cyan ball.",
     price: 0,
+    coinMultiplier: 1,
     shape: "sphere",
     color: 0x00ffff,
     emissive: 0x0088aa,
@@ -33,6 +36,7 @@ export const SKINS: SkinConfig[] = [
     name: "Donut",
     description: "A pink-frosted donut that rolls on its side.",
     price: 30,
+    coinMultiplier: 2,
     shape: "torus",
     color: 0xff77bb,
     emissive: 0x883355,
@@ -46,6 +50,7 @@ export const SKINS: SkinConfig[] = [
     name: "Lava Core",
     description: "Molten rock, glowing from the inside out.",
     price: 45,
+    coinMultiplier: 3,
     shape: "icosa",
     color: 0xff4400,
     emissive: 0xff2200,
@@ -59,6 +64,7 @@ export const SKINS: SkinConfig[] = [
     name: "Lucky Dice",
     description: "A tumbling ivory cube. Roll the odds.",
     price: 60,
+    coinMultiplier: 4,
     shape: "box",
     color: 0xfff4e0,
     emissive: 0x554433,
@@ -72,6 +78,7 @@ export const SKINS: SkinConfig[] = [
     name: "Emerald Gem",
     description: "A faceted green jewel with a deep shine.",
     price: 80,
+    coinMultiplier: 5,
     shape: "dodeca",
     color: 0x18e07a,
     emissive: 0x0a6b3a,
@@ -85,6 +92,7 @@ export const SKINS: SkinConfig[] = [
     name: "Chrome Pill",
     description: "A mirror-polished capsule built for speed.",
     price: 120,
+    coinMultiplier: 6,
     shape: "capsule",
     color: 0xdfe7ff,
     emissive: 0x223344,
@@ -99,6 +107,7 @@ export const SKINS: SkinConfig[] = [
     description:
       "A detailed red-and-gold Liverpool crest ball with a Liver Bird and twin-torch accents.",
     price: 250,
+    coinMultiplier: 7,
     shape: "sphere",
     color: 0xdc0714,
     emissive: 0x5b0008,
