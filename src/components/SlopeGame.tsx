@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type * as THREE from "three";
-import { Leaderboard, leaderboardQueryKey } from "./Leaderboard";
-import { submitScore } from "@/lib/leaderboard.functions";
+import { Leaderboard, leaderboardQueryKey, weeklyLeaderboardQueryKey } from "./Leaderboard";
+import { claimWeeklyReward, submitScore } from "@/lib/leaderboard.functions";
 import { getPlayerId } from "@/lib/player";
 import { getMap } from "@/lib/maps";
 import { SkinShop } from "./SkinShop";
-import { getSelectedSkinId, getSkin } from "@/lib/skins";
+import { getCoins, getSelectedSkinId, getSkin, setCoins } from "@/lib/skins";
 import { createSkinModel, disposeSkinModel, setSkinShield } from "@/lib/skin-models";
-
 
 interface GameState {
   score: number;
@@ -20,6 +19,7 @@ interface GameState {
   highScore: number;
   newBest: boolean;
   timers: { speed: number; jump: number; shield: number };
+  weeklyReward: number;
 }
 
 type BlockType = "crash" | "slow" | "boost" | "bounce";
@@ -71,6 +71,7 @@ export function SlopeGame({
   const containerRef = useRef<HTMLDivElement>(null);
   const buyRef = useRef<((p: PowerUp) => void) | null>(null);
   const skinRef = useRef<((skinId: string, coins: number) => void) | null>(null);
+  const coinsRef = useRef(0);
   const [shopOpen, setShopOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -84,6 +85,7 @@ export function SlopeGame({
     highScore: 0,
     newBest: false,
     timers: { speed: 0, jump: 0, shield: 0 },
+    weeklyReward: 0,
   });
 
   useEffect(() => {
@@ -107,7 +109,7 @@ export function SlopeGame({
         62,
         container.clientWidth / container.clientHeight,
         0.1,
-        1000
+        1000,
       );
       camera.position.set(0, 5, 12);
 
@@ -158,8 +160,7 @@ export function SlopeGame({
       const visibleSegments = 55;
 
       const pathX = (d: number) =>
-        map.curve.a * Math.sin(d * map.curve.af) +
-        map.curve.b * Math.sin(d * map.curve.bf + 1.3);
+        map.curve.a * Math.sin(d * map.curve.af) + map.curve.b * Math.sin(d * map.curve.bf + 1.3);
       const pathY = (d: number) =>
         map.slope.a * Math.sin(d * map.slope.af) +
         map.slope.b * Math.sin(d * map.slope.bf + 0.7) -
@@ -177,10 +178,7 @@ export function SlopeGame({
       });
       const lineMaterial = new THREE.MeshBasicMaterial({ color: map.accent });
 
-      const blockStyles: Record<
-        BlockType,
-        { color: number; emissive: number; label: string }
-      > = {
+      const blockStyles: Record<BlockType, { color: number; emissive: number; label: string }> = {
         crash: { color: 0xff2244, emissive: 0xaa0022, label: "Crash" },
         slow: { color: 0xffaa00, emissive: 0xaa6600, label: "Slowed down!" },
         boost: { color: 0x00ff88, emissive: 0x00aa55, label: "Boost!" },
@@ -262,7 +260,7 @@ export function SlopeGame({
 
         const floor = new THREE.Mesh(
           new THREE.BoxGeometry(trackWidth, 1, segmentLength + 0.15),
-          trackMaterial
+          trackMaterial,
         );
         floor.receiveShadow = true;
         floor.position.y = -0.5;
@@ -278,7 +276,7 @@ export function SlopeGame({
 
         const line = new THREE.Mesh(
           new THREE.BoxGeometry(0.1, 0.05, segmentLength * 0.6),
-          lineMaterial
+          lineMaterial,
         );
         line.position.y = 0.02;
         group.add(line);
@@ -302,7 +300,7 @@ export function SlopeGame({
             const size = type === "crash" ? 1 + Math.random() * 0.8 : 1.1;
             const mesh = new THREE.Mesh(
               new THREE.BoxGeometry(size, size, size),
-              blockMaterials[type]
+              blockMaterials[type],
             );
             mesh.castShadow = true;
             mesh.receiveShadow = true;
@@ -316,9 +314,7 @@ export function SlopeGame({
           const laneWidth = trackWidth / 5;
           const lane = Math.floor(Math.random() * 5) - 2;
           const lateral = lane * laneWidth;
-          const clash = blocks.some(
-            (b) => b.d === d && Math.abs(b.lateral - lateral) < 1.2
-          );
+          const clash = blocks.some((b) => b.d === d && Math.abs(b.lateral - lateral) < 1.2);
           if (!clash) {
             const mesh = new THREE.Mesh(coinGeometry, coinMaterial);
             mesh.castShadow = true;
@@ -358,11 +354,13 @@ export function SlopeGame({
       // ---- Coins & power-ups -------------------------------------------
       const stored = Number(window.localStorage.getItem("slope-coins") ?? "0");
       let coinCount = Number.isFinite(stored) ? stored : 0;
+      coinsRef.current = coinCount;
       const storedBest = Number(window.localStorage.getItem("slope-highscore") ?? "0");
       let highScore = Number.isFinite(storedBest) ? storedBest : 0;
       const timers: Record<PowerUp, number> = { speed: 0, jump: 0, shield: 0 };
 
       function saveCoins() {
+        coinsRef.current = coinCount;
         window.localStorage.setItem("slope-coins", String(coinCount));
       }
       saveCoins();
@@ -382,6 +380,7 @@ export function SlopeGame({
           ...s,
           coins: coinCount,
           highScore,
+          weeklyReward: 0,
           timers: { ...timers },
         }));
       }
@@ -411,6 +410,7 @@ export function SlopeGame({
           setSkinShield(ball, true);
         }
         coinCount = newCoins;
+        coinsRef.current = coinCount;
         saveCoins();
         syncMeta();
       };
@@ -444,7 +444,7 @@ export function SlopeGame({
         const deltaX = e.touches[0]!.clientX - touchStartX;
         targetLateral = Math.max(
           -trackWidth / 2 + 0.6,
-          Math.min(trackWidth / 2 - 0.6, lateralPos + deltaX * 0.02)
+          Math.min(trackWidth / 2 - 0.6, lateralPos + deltaX * 0.02),
         );
         touchStartX = e.touches[0]!.clientX;
       }
@@ -475,10 +475,10 @@ export function SlopeGame({
           highScore,
           newBest,
         }));
-
       }
 
       function resetGame() {
+        coinCount = coinsRef.current;
         score = 0;
         distance = 0;
         currentSpeed = baseSpeed;
@@ -513,6 +513,7 @@ export function SlopeGame({
           coins: coinCount,
           highScore,
           newBest: false,
+          weeklyReward: 0,
           timers: { speed: 0, jump: 0, shield: 0 },
         });
       }
@@ -544,7 +545,7 @@ export function SlopeGame({
           speedModifier += (0 - speedModifier) * Math.min(1, delta * 0.8);
           currentSpeed = Math.max(
             8,
-            baseSpeed + score * 0.02 + speedModifier + (timers.speed > 0 ? 10 : 0)
+            baseSpeed + score * 0.02 + speedModifier + (timers.speed > 0 ? 10 : 0),
           );
 
           const moveDistance = currentSpeed * delta;
@@ -592,10 +593,7 @@ export function SlopeGame({
           if (!keys.left && !keys.right && lastInput === "touch") {
             lateralPos += (targetLateral - lateralPos) * 5 * delta;
           }
-          lateralPos = Math.max(
-            -trackWidth / 2 + 0.6,
-            Math.min(trackWidth / 2 - 0.6, lateralPos)
-          );
+          lateralPos = Math.max(-trackWidth / 2 + 0.6, Math.min(trackWidth / 2 - 0.6, lateralPos));
 
           // Vertical (bounce) physics
           const gravity = timers.jump > 0 ? 12 : 26;
@@ -617,6 +615,7 @@ export function SlopeGame({
             scene.remove(c.mesh);
             coins.splice(i, 1);
             coinCount += 1;
+            coinsRef.current = coinCount;
             saveCoins();
             syncMeta();
           }
@@ -678,15 +677,11 @@ export function SlopeGame({
           b.mesh.position.set(
             pathX(b.d) + b.lateral,
             pathY(b.d) + (b.size * b.mesh.scale.y) / 2,
-            -(b.d - distance)
+            -(b.d - distance),
           );
         }
         for (const c of coins) {
-          c.mesh.position.set(
-            pathX(c.d) + c.lateral,
-            pathY(c.d) + 0.8,
-            -(c.d - distance)
-          );
+          c.mesh.position.set(pathX(c.d) + c.lateral, pathY(c.d) + 0.8, -(c.d - distance));
           c.mesh.rotation.y += delta * 3;
         }
 
@@ -705,11 +700,7 @@ export function SlopeGame({
         camera.position.y += (camTargetY - camera.position.y) * Math.min(1, delta * 4);
         camera.position.z = 12;
         const aheadD = distance + 22;
-        camera.lookAt(
-          pathX(aheadD) * 0.6 + ballWorldX * 0.4,
-          pathY(aheadD) + 1.5,
-          -22
-        );
+        camera.lookAt(pathX(aheadD) * 0.6 + ballWorldX * 0.4, pathY(aheadD) + 1.5, -22);
 
         renderer.render(scene, camera);
       }
@@ -746,7 +737,23 @@ export function SlopeGame({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapId]);
 
-  // Send the finished run to the worldwide leaderboard
+  // Send the finished run to both the worldwide and weekly leaderboards
+  useEffect(() => {
+    let cancelled = false;
+    claimWeeklyReward({ data: { playerId: getPlayerId() } })
+      .then((reward) => {
+        if (cancelled || reward <= 0) return;
+        const nextCoins = getCoins() + reward;
+        setCoins(nextCoins);
+        coinsRef.current = nextCoins;
+        setGameState((s) => ({ ...s, coins: nextCoins, weeklyReward: reward }));
+      })
+      .catch((err) => console.error("weekly reward claim failed", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (!gameState.isGameOver) return;
     const distance = gameState.score;
@@ -755,15 +762,23 @@ export function SlopeGame({
     submitScore({
       data: { playerId: getPlayerId(), name: playerName, distance },
     })
-      .then(() => {
-        if (!cancelled) queryClient.invalidateQueries({ queryKey: leaderboardQueryKey });
+      .then((result) => {
+        if (!cancelled) {
+          queryClient.invalidateQueries({ queryKey: leaderboardQueryKey });
+          queryClient.invalidateQueries({ queryKey: weeklyLeaderboardQueryKey });
+          if (result.reward > 0) {
+            const nextCoins = getCoins() + result.reward;
+            setCoins(nextCoins);
+            coinsRef.current = nextCoins;
+            setGameState((s) => ({ ...s, coins: nextCoins, weeklyReward: result.reward }));
+          }
+        }
       })
       .catch((err) => console.error("leaderboard submit failed", err));
     return () => {
       cancelled = true;
     };
   }, [gameState.isGameOver, gameState.score, playerName, queryClient]);
-
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#0a0a0f]">
@@ -783,9 +798,7 @@ export function SlopeGame({
           </div>
           <div className="rounded-lg bg-black/40 px-4 py-2 text-center backdrop-blur-sm">
             <p className="text-xs uppercase tracking-widest text-yellow-400">Coins</p>
-            <p className="font-mono text-3xl font-bold text-yellow-300">
-              {gameState.coins}
-            </p>
+            <p className="font-mono text-3xl font-bold text-yellow-300">{gameState.coins}</p>
           </div>
           <div className="rounded-lg bg-black/40 px-4 py-2 backdrop-blur-sm">
             <p className="text-xs uppercase tracking-widest text-cyan-400">Speed</p>
@@ -818,16 +831,11 @@ export function SlopeGame({
                     affordable ? "hover:scale-105" : "opacity-40"
                   } ${active ? "ring-2 ring-white/70" : ""}`}
                 >
-                  <p
-                    className="text-sm font-bold"
-                    style={{ color: info.color }}
-                  >
+                  <p className="text-sm font-bold" style={{ color: info.color }}>
                     {info.key} · {info.label}
                   </p>
                   <p className="font-mono text-xs text-white/70">
-                    {active
-                      ? `${gameState.timers[p].toFixed(1)}s left`
-                      : `${info.cost} coins`}
+                    {active ? `${gameState.timers[p].toFixed(1)}s left` : `${info.cost} coins`}
                   </p>
                 </button>
               );
@@ -880,9 +888,7 @@ export function SlopeGame({
               Skin shop
             </button>
             <div className="mx-auto mb-6 flex max-w-md items-center justify-center gap-6 font-mono text-sm">
-              <p className="text-cyan-300">
-                Top score: {gameState.highScore.toLocaleString()}
-              </p>
+              <p className="text-cyan-300">Top score: {gameState.highScore.toLocaleString()}</p>
               <p className="text-yellow-300">Coins: {gameState.coins}</p>
             </div>
             <div className="mb-6">
@@ -915,15 +921,12 @@ export function SlopeGame({
                   <span style={{ color: POWER_UPS[p].color }}>
                     Press {POWER_UPS[p].key} — {POWER_UPS[p].label}
                   </span>{" "}
-                  · {POWER_UPS[p].cost} coins · {POWER_UPS[p].duration}s ·{" "}
-                  {POWER_UPS[p].hint}
+                  · {POWER_UPS[p].cost} coins · {POWER_UPS[p].duration}s · {POWER_UPS[p].hint}
                 </p>
               ))}
             </div>
             <button
-              onClick={() =>
-                window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }))
-              }
+              onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }))}
               className="rounded-full bg-cyan-500 px-8 py-3 font-bold text-black shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 hover:bg-cyan-400"
             >
               Press Space to Start
@@ -942,6 +945,11 @@ export function SlopeGame({
                 ★ New top score! ★
               </p>
             )}
+            {gameState.weeklyReward > 0 && (
+              <p className="mb-2 animate-pulse font-mono text-lg font-bold text-yellow-300">
+                🏆 Weekly reward: +{gameState.weeklyReward} coins!
+              </p>
+            )}
             <p className="mb-2 text-xl text-white">Final Score</p>
             <p className="mb-2 font-mono text-5xl font-bold text-white">
               {gameState.score.toLocaleString()}
@@ -954,9 +962,7 @@ export function SlopeGame({
             </div>
 
             <button
-              onClick={() =>
-                window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }))
-              }
+              onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }))}
               className="rounded-full bg-cyan-500 px-8 py-3 font-bold text-black shadow-lg shadow-cyan-500/30 transition-all hover:scale-105 hover:bg-cyan-400"
             >
               Press Space to Restart

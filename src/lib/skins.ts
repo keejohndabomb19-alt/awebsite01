@@ -1,10 +1,4 @@
-export type SkinShape =
-  | "sphere"
-  | "torus"
-  | "icosa"
-  | "box"
-  | "dodeca"
-  | "capsule";
+export type SkinShape = "sphere" | "torus" | "icosa" | "box" | "dodeca" | "capsule";
 
 export interface SkinConfig {
   id: string;
@@ -98,6 +92,20 @@ export const SKINS: SkinConfig[] = [
     roughness: 0.05,
     metalness: 1,
     swatch: "#dfe7ff",
+  },
+  {
+    id: "liverpool",
+    name: "Liverpool FC",
+    description:
+      "A detailed red-and-gold Liverpool crest ball with a Liver Bird and twin-torch accents.",
+    price: 250,
+    shape: "sphere",
+    color: 0xdc0714,
+    emissive: 0x5b0008,
+    emissiveIntensity: 0.55,
+    roughness: 0.28,
+    metalness: 0.7,
+    swatch: "#dc0714",
   },
 ];
 
