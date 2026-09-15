@@ -78,8 +78,13 @@ export const getWeeklyLeaderboard = createServerFn({ method: "GET" }).handler(
 export const submitScore = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => submitSchema.parse(input))
   .handler(async ({ data }): Promise<ScoreSubmissionResult> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: result, error } = await supabaseAdmin.rpc("submit_score", {
+    // Score submissions do not require a service-role secret: the database
+    // function validates its arguments and is safe to invoke with the same
+    // publishable client used by the read handlers. This keeps submissions
+    // working in deployments where the service-role key is intentionally not
+    // available to server functions.
+    const supabase = await getPublicSupabase();
+    const { data: result, error } = await supabase.rpc("submit_score", {
       _player_id: data.playerId,
       _name: data.name,
       _distance: data.distance,
