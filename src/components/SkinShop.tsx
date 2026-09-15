@@ -77,6 +77,9 @@ export function SkinShop({
                   </span>
                 </div>
                 <p className="mb-4 text-sm text-white/70">{s.description}</p>
+                <p className="mb-4 font-mono text-sm font-bold text-yellow-300">
+                  {s.coinMultiplier}× coin multiplier
+                </p>
                 {isOn ? (
                   <span className="inline-block rounded-full bg-white/15 px-4 py-1.5 text-sm font-bold text-white">
                     Equipped

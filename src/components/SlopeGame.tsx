@@ -6,8 +6,22 @@ import { claimWeeklyReward, submitScore } from "@/lib/leaderboard.functions";
 import { getPlayerId } from "@/lib/player";
 import { getMap } from "@/lib/maps";
 import { SkinShop } from "./SkinShop";
+import { ProgressionPanel } from "./ProgressionPanel";
 import { getCoins, getSelectedSkinId, getSkin, setCoins } from "@/lib/skins";
 import { createSkinModel, disposeSkinModel, setSkinShield } from "@/lib/skin-models";
+import {
+  CHEST_COST,
+  DAILY_REWARD,
+  WEEKLY_REWARD,
+  getChestBoostMultiplier,
+  getDailyProgress,
+  getWeeklyProgress,
+  openBasicChest,
+  saveDailyProgress,
+  saveWeeklyProgress,
+  type DailyProgress,
+  type WeeklyProgress,
+} from "@/lib/progression";
 
 interface GameState {
   score: number;
@@ -20,6 +34,8 @@ interface GameState {
   newBest: boolean;
   timers: { speed: number; jump: number; shield: number };
   weeklyReward: number;
+  daily: DailyProgress;
+  weeklyMission: WeeklyProgress;
 }
 
 type BlockType = "crash" | "slow" | "boost" | "bounce";
@@ -86,6 +102,8 @@ export function SlopeGame({
     newBest: false,
     timers: { speed: 0, jump: 0, shield: 0 },
     weeklyReward: 0,
+    daily: getDailyProgress(),
+    weeklyMission: getWeeklyProgress(),
   });
 
   useEffect(() => {
@@ -350,6 +368,10 @@ export function SlopeGame({
       let animationId = 0;
       let lastTime = performance.now();
       let messageTimer = 0;
+      let daily = getDailyProgress();
+      let weeklyMission = getWeeklyProgress();
+      let pendingMissionDistance = 0;
+      let pendingMissionSeconds = 0;
 
       // ---- Coins & power-ups -------------------------------------------
       const stored = Number(window.localStorage.getItem("slope-coins") ?? "0");
@@ -382,7 +404,39 @@ export function SlopeGame({
           highScore,
           weeklyReward: 0,
           timers: { ...timers },
+          daily,
+          weeklyMission,
         }));
+      }
+
+      function addMissionProgress(distanceTravelled: number, seconds: number, collectedCoins = 0) {
+        daily = {
+          ...daily,
+          distance: daily.distance + distanceTravelled,
+          survivalSeconds: daily.survivalSeconds + seconds,
+          coinsCollected: daily.coinsCollected + collectedCoins,
+        };
+        weeklyMission = { ...weeklyMission, distance: weeklyMission.distance + distanceTravelled };
+        let reward = 0;
+        if (daily.distance >= 5000 && !daily.distanceRewardClaimed) {
+          daily.distanceRewardClaimed = true;
+          reward += 100;
+        }
+        if (daily.survivalSeconds >= 120 && !daily.survivalRewardClaimed) {
+          daily.survivalRewardClaimed = true;
+          reward += 150;
+        }
+        if (daily.coinsCollected >= 50 && !daily.coinsRewardClaimed) {
+          daily.coinsRewardClaimed = true;
+          reward += 75;
+        }
+        if (reward > 0) {
+          coinCount += reward;
+          saveCoins();
+          flash(`Mission reward: +${reward} coins`);
+        }
+        saveDailyProgress(daily);
+        saveWeeklyProgress(weeklyMission);
       }
       syncMeta();
 
@@ -515,6 +569,8 @@ export function SlopeGame({
           newBest: false,
           weeklyReward: 0,
           timers: { speed: 0, jump: 0, shield: 0 },
+          daily,
+          weeklyMission,
         });
       }
 
@@ -551,6 +607,14 @@ export function SlopeGame({
           const moveDistance = currentSpeed * delta;
           distance += moveDistance;
           score += moveDistance;
+          pendingMissionDistance += moveDistance;
+          pendingMissionSeconds += delta;
+          if (pendingMissionSeconds >= 1) {
+            addMissionProgress(pendingMissionDistance, pendingMissionSeconds);
+            pendingMissionDistance = 0;
+            pendingMissionSeconds = 0;
+            syncMeta();
+          }
 
           // Recycle + spawn segments
           for (let i = segments.length - 1; i >= 0; i--) {
@@ -614,9 +678,12 @@ export function SlopeGame({
             if (ballHeight > 1.4) continue;
             scene.remove(c.mesh);
             coins.splice(i, 1);
-            coinCount += 1;
+            const reward = skin.coinMultiplier * getChestBoostMultiplier();
+            coinCount += reward;
             coinsRef.current = coinCount;
             saveCoins();
+            addMissionProgress(0, 0, 1);
+            if (reward > 1) flash(`+${reward} coins`);
             syncMeta();
           }
 
@@ -780,6 +847,57 @@ export function SlopeGame({
     };
   }, [gameState.isGameOver, gameState.score, playerName, queryClient]);
 
+  function claimDailyChest() {
+    if (
+      gameState.daily.chestClaimed ||
+      gameState.daily.distance < 5000 ||
+      gameState.daily.survivalSeconds < 120 ||
+      gameState.daily.coinsCollected < 50
+    )
+      return;
+    const daily = { ...gameState.daily, chestClaimed: true };
+    const coins = gameState.coins + DAILY_REWARD;
+    saveDailyProgress(daily);
+    setCoins(coins);
+    coinsRef.current = coins;
+    setGameState((state) => ({
+      ...state,
+      coins,
+      daily,
+      message: `Daily Bonus Chest: +${DAILY_REWARD} coins`,
+    }));
+  }
+
+  function claimWeeklyMission() {
+    if (gameState.weeklyMission.claimed || gameState.weeklyMission.distance < 10000) return;
+    const weeklyMission = { ...gameState.weeklyMission, claimed: true };
+    const coins = gameState.coins + WEEKLY_REWARD;
+    saveWeeklyProgress(weeklyMission);
+    setCoins(coins);
+    coinsRef.current = coins;
+    setGameState((state) => ({
+      ...state,
+      coins,
+      weeklyMission,
+      message: `Weekly Mission: +${WEEKLY_REWARD} coins`,
+    }));
+  }
+
+  function openChest() {
+    if (gameState.coins < CHEST_COST) return;
+    const prize = openBasicChest();
+    const coins = gameState.coins - CHEST_COST + (prize.type === "coins" ? prize.coins : 0);
+    setCoins(coins);
+    coinsRef.current = coins;
+    const message =
+      prize.type === "coins"
+        ? `Chest: +${prize.coins} coins`
+        : prize.type === "boost"
+          ? `Chest: 2× coins for ${prize.durationSeconds}s`
+          : `Chest: ${prize.skinName} unlocked!`;
+    setGameState((state) => ({ ...state, coins, message }));
+  }
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#0a0a0f]">
       <div ref={containerRef} className="h-full w-full" />
@@ -887,6 +1005,14 @@ export function SlopeGame({
             >
               Skin shop
             </button>
+            <ProgressionPanel
+              daily={gameState.daily}
+              weekly={gameState.weeklyMission}
+              coins={gameState.coins}
+              onClaimDailyChest={claimDailyChest}
+              onClaimWeekly={claimWeeklyMission}
+              onOpenChest={openChest}
+            />
             <div className="mx-auto mb-6 flex max-w-md items-center justify-center gap-6 font-mono text-sm">
               <p className="text-cyan-300">Top score: {gameState.highScore.toLocaleString()}</p>
               <p className="text-yellow-300">Coins: {gameState.coins}</p>
