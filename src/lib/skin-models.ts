@@ -375,6 +375,169 @@ export function createSkinModel(THREE: ThreeModule, skin: SkinConfig) {
         }),
       ),
     );
+  } else if (skin.id === "solar") {
+    const gold = standard(THREE, {
+      color: 0xffb21a,
+      emissive: 0xff4d00,
+      emissiveIntensity: 1.6,
+      roughness: 0.24,
+      metalness: 0.68,
+    });
+    const flare = standard(THREE, {
+      color: 0xfff2a3,
+      emissive: 0xff8a00,
+      emissiveIntensity: 2.1,
+      roughness: 0.15,
+      metalness: 0.45,
+    });
+    model.add(mesh(THREE, new THREE.IcosahedronGeometry(0.48, 3), gold));
+    model.add(mesh(THREE, new THREE.SphereGeometry(0.38, 32, 24), flare));
+    // Eight raised solar rays make the light source readable while it spins.
+    for (let i = 0; i < 8; i++) {
+      const ray = mesh(THREE, new THREE.ConeGeometry(0.065, 0.3, 8), flare);
+      const angle = (i / 8) * Math.PI * 2;
+      ray.position.set(Math.cos(angle) * 0.57, Math.sin(angle) * 0.57, 0);
+      ray.rotation.z = angle - Math.PI / 2;
+      model.add(ray);
+    }
+    const corona = mesh(THREE, new THREE.TorusGeometry(0.61, 0.018, 8, 64), flare);
+    corona.rotation.x = Math.PI / 2;
+    model.add(corona);
+  } else if (skin.id === "amethyst") {
+    const crystal = standard(THREE, {
+      color: skin.color,
+      emissive: skin.emissive,
+      emissiveIntensity: 1.05,
+      roughness: 0.11,
+      metalness: 0.78,
+    });
+    const highlight = standard(THREE, {
+      color: 0xf0d7ff,
+      emissive: 0x9a42ff,
+      emissiveIntensity: 1.25,
+      roughness: 0.08,
+      metalness: 0.55,
+    });
+    const coreGeometry = new THREE.OctahedronGeometry(0.55, 1);
+    model.add(mesh(THREE, coreGeometry, crystal));
+    model.add(
+      new THREE.LineSegments(
+        new THREE.EdgesGeometry(coreGeometry),
+        new THREE.LineBasicMaterial({ color: 0xf2c7ff, transparent: true, opacity: 0.82 }),
+      ),
+    );
+    for (let i = 0; i < 5; i++) {
+      const shard = mesh(THREE, new THREE.ConeGeometry(0.11, 0.42, 5), highlight);
+      const angle = (i / 5) * Math.PI * 2;
+      shard.position.set(Math.cos(angle) * 0.37, -0.05, Math.sin(angle) * 0.37);
+      shard.rotation.z = Math.PI / 2;
+      shard.rotation.y = -angle;
+      model.add(shard);
+    }
+  } else if (skin.id === "circuit") {
+    const cobalt = standard(THREE, {
+      color: skin.color,
+      emissive: 0x06266e,
+      emissiveIntensity: 0.72,
+      roughness: 0.22,
+      metalness: 0.86,
+    });
+    const trace = standard(THREE, {
+      color: 0x31e6bb,
+      emissive: 0x00dca2,
+      emissiveIntensity: 1.8,
+      roughness: 0.2,
+      metalness: 0.65,
+    });
+    model.add(mesh(THREE, new THREE.BoxGeometry(0.78, 0.78, 0.78, 4, 4, 4), cobalt));
+    // Neon traces are mounted to the visible faces, with chips at each endpoint.
+    const tracePath = (x: number, y: number, z: number, horizontal: boolean) => {
+      const path = mesh(
+        THREE,
+        new THREE.BoxGeometry(horizontal ? 0.25 : 0.035, horizontal ? 0.035 : 0.25, 0.025),
+        trace,
+      );
+      path.position.set(x, y, z);
+      model.add(path);
+      const pad = mesh(THREE, new THREE.CylinderGeometry(0.045, 0.045, 0.03, 12), trace);
+      pad.rotation.x = Math.PI / 2;
+      pad.position.set(x + (horizontal ? 0.15 : 0), y + (horizontal ? 0 : 0.15), z);
+      model.add(pad);
+    };
+    [-0.2, 0.05, 0.22].forEach((offset, i) => {
+      tracePath(offset, i === 1 ? 0.02 : -0.18, 0.403, i % 2 === 0);
+      tracePath(0.403, offset, i === 1 ? 0.02 : -0.18, i % 2 === 1);
+    });
+    const chip = mesh(
+      THREE,
+      new THREE.BoxGeometry(0.24, 0.18, 0.05),
+      standard(THREE, { color: 0x101827, roughness: 0.4, metalness: 0.5 }),
+    );
+    chip.position.set(0, 0, 0.414);
+    model.add(chip);
+  } else if (skin.id === "rose") {
+    const rose = standard(THREE, {
+      color: skin.color,
+      emissive: skin.emissive,
+      emissiveIntensity: 0.92,
+      roughness: 0.17,
+      metalness: 0.68,
+    });
+    const inner = standard(THREE, {
+      color: 0xffe1ef,
+      emissive: 0xff76ad,
+      emissiveIntensity: 1.15,
+      roughness: 0.08,
+      metalness: 0.52,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const gemGeometry = new THREE.DodecahedronGeometry(0.55, 0);
+    model.add(mesh(THREE, gemGeometry, rose));
+    model.add(mesh(THREE, new THREE.DodecahedronGeometry(0.39, 0), inner));
+    model.add(
+      new THREE.LineSegments(
+        new THREE.EdgesGeometry(gemGeometry),
+        new THREE.LineBasicMaterial({ color: 0xffe7f2, transparent: true, opacity: 0.75 }),
+      ),
+    );
+    for (const rotation of [0.55, -0.55]) {
+      const band = mesh(THREE, new THREE.TorusGeometry(0.5, 0.012, 8, 48), inner);
+      band.rotation.x = rotation;
+      model.add(band);
+    }
+  } else if (skin.id === "chrome") {
+    const chrome = standard(THREE, {
+      color: skin.color,
+      emissive: skin.emissive,
+      emissiveIntensity: 0.4,
+      roughness: 0.045,
+      metalness: 1,
+    });
+    const accent = standard(THREE, {
+      color: 0x45dfff,
+      emissive: 0x0088cc,
+      emissiveIntensity: 1.55,
+      roughness: 0.12,
+      metalness: 0.9,
+    });
+    const body = mesh(THREE, new THREE.CapsuleGeometry(0.34, 0.42, 16, 32), chrome);
+    body.rotation.z = Math.PI / 2;
+    model.add(body);
+    [-0.26, 0, 0.26].forEach((x, index) => {
+      const collar = mesh(
+        THREE,
+        new THREE.TorusGeometry(0.345, index === 1 ? 0.028 : 0.016, 10, 48),
+        accent,
+      );
+      collar.rotation.y = Math.PI / 2;
+      collar.position.x = x;
+      model.add(collar);
+    });
+    const viewport = mesh(THREE, new THREE.CircleGeometry(0.13, 24), accent);
+    viewport.rotation.y = Math.PI / 2;
+    viewport.position.x = 0.351;
+    model.add(viewport);
   } else {
     const geometry =
       skin.shape === "sphere"
