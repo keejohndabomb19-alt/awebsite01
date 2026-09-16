@@ -54,7 +54,7 @@ export function SkinShop({
         <h2 className="mb-2 bg-gradient-to-r from-yellow-300 to-pink-400 bg-clip-text text-5xl font-black tracking-tighter text-transparent">
           SKIN SHOP
         </h2>
-        <p className="mb-6 font-mono text-yellow-300">You have {balance} coins</p>
+        <p className="mb-6 font-mono text-yellow-300">You have {balance.toLocaleString()} coins</p>
 
         <div className="grid gap-4 sm:grid-cols-2">
           {SKINS.map((s) => {
@@ -97,7 +97,7 @@ export function SkinShop({
                     disabled={balance < s.price}
                     className="rounded-full bg-yellow-400 px-4 py-1.5 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Buy — {s.price} coins
+                    Buy — {s.price.toLocaleString()} coins
                   </button>
                 )}
               </div>
