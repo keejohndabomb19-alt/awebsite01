@@ -376,9 +376,21 @@ export function createSkinModel(THREE: ThreeModule, skin: SkinConfig) {
       ),
     );
   } else {
+    const geometry =
+      skin.shape === "sphere"
+        ? new THREE.SphereGeometry(0.52, 32, 24)
+        : skin.shape === "box"
+          ? new THREE.BoxGeometry(0.78, 0.78, 0.78, 3, 3, 3)
+          : skin.shape === "dodeca"
+            ? new THREE.DodecahedronGeometry(0.55, 0)
+            : skin.shape === "octa"
+              ? new THREE.OctahedronGeometry(0.58, 0)
+              : skin.shape === "icosa"
+                ? new THREE.IcosahedronGeometry(0.56, 1)
+                : new THREE.CapsuleGeometry(0.34, 0.42, 12, 24);
     const body = mesh(
       THREE,
-      new THREE.CapsuleGeometry(0.34, 0.42, 12, 24),
+      geometry,
       standard(THREE, {
         color: skin.color,
         emissive: skin.emissive,
@@ -387,7 +399,7 @@ export function createSkinModel(THREE: ThreeModule, skin: SkinConfig) {
         metalness: 1,
       }),
     );
-    body.rotation.z = Math.PI / 2;
+    if (skin.shape === "capsule") body.rotation.z = Math.PI / 2;
     model.add(body);
     [-0.22, 0, 0.22].forEach((x, index) => {
       const band = mesh(
@@ -401,8 +413,12 @@ export function createSkinModel(THREE: ThreeModule, skin: SkinConfig) {
           metalness: 0.95,
         }),
       );
-      band.rotation.y = Math.PI / 2;
-      band.position.x = x;
+      if (skin.shape === "capsule") {
+        band.rotation.y = Math.PI / 2;
+        band.position.x = x;
+      } else {
+        band.position.y = x;
+      }
       model.add(band);
     });
   }
