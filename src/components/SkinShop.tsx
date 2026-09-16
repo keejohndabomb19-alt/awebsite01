@@ -1,13 +1,5 @@
-import { useState } from "react";
-import {
-  SKINS,
-  getCoins,
-  getOwnedSkins,
-  getSelectedSkinId,
-  ownSkin,
-  saveSkinId,
-  setCoins,
-} from "@/lib/skins";
+import { useEffect, useState } from "react";
+import { SKINS, getOwnedSkins, getSelectedSkinId, ownSkin, saveSkinId } from "@/lib/skins";
 import { SkinPreview } from "./SkinPreview";
 
 export function SkinShop({
@@ -22,8 +14,12 @@ export function SkinShop({
 }) {
   const [owned, setOwned] = useState<string[]>(() => getOwnedSkins());
   const [selected, setSelected] = useState<string>(() => getSelectedSkinId());
-  const [balance, setBalance] = useState<number>(() => Math.max(coins, getCoins()));
+  const [balance, setBalance] = useState(coins);
   const [note, setNote] = useState("");
+
+  useEffect(() => {
+    setBalance(coins);
+  }, [coins]);
 
   function equip(id: string) {
     saveSkinId(id);
@@ -32,26 +28,37 @@ export function SkinShop({
     onChange(id, balance);
   }
 
-  function buy(id: string, price: number) {
-    if (balance < price) {
+  function buy(skin: (typeof SKINS)[number]) {
+    if (owned.includes(skin.id)) {
+      equip(skin.id);
+      return;
+    }
+    if (balance < skin.price) {
       setNote("Not enough coins — collect more gold coins on the slope.");
       return;
     }
-    const next = balance - price;
-    setCoins(next);
+
+    const next = balance - skin.price;
     setBalance(next);
-    const list = ownSkin(id);
-    setOwned(list);
-    saveSkinId(id);
-    setSelected(id);
+    setOwned(ownSkin(skin.id));
+    saveSkinId(skin.id);
+    setSelected(skin.id);
     setNote("");
-    onChange(id, next);
+    onChange(skin.id, next);
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/90 px-4 py-8 backdrop-blur-sm">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="skin-shop-title"
+      className="absolute inset-0 z-30 flex items-start justify-center overflow-y-auto bg-black/90 px-4 py-8 backdrop-blur-sm"
+    >
       <div className="w-full max-w-3xl text-center">
-        <h2 className="mb-2 bg-gradient-to-r from-yellow-300 to-pink-400 bg-clip-text text-5xl font-black tracking-tighter text-transparent">
+        <h2
+          id="skin-shop-title"
+          className="mb-2 bg-gradient-to-r from-yellow-300 to-pink-400 bg-clip-text text-5xl font-black tracking-tighter text-transparent"
+        >
           SKIN SHOP
         </h2>
         <p className="mb-6 font-mono text-yellow-300">You have {balance.toLocaleString()} coins</p>
@@ -93,7 +100,7 @@ export function SkinShop({
                   </button>
                 ) : (
                   <button
-                    onClick={() => buy(s.id, s.price)}
+                    onClick={() => buy(s)}
                     disabled={balance < s.price}
                     className="rounded-full bg-yellow-400 px-4 py-1.5 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-40"
                   >
