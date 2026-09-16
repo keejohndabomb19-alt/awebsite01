@@ -38,6 +38,8 @@ type Challenge = {
 };
 type PowerUp = "speed" | "jump" | "shield";
 
+const DAILY_CHALLENGES_STORAGE_KEY = "slope-daily-challenges";
+
 const ENVIRONMENTS = [
   { name: "Volcano", bg: 0x260807, track: 0x260c0a, accent: 0xff5438 },
   { name: "Ice", bg: 0x081826, track: 0x16323f, accent: 0xbfe9ff },
@@ -75,6 +77,66 @@ function defaultChallenges(): Challenge[] {
       complete: false,
     },
   ];
+}
+
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isDailyChallenge(challenge: Challenge) {
+  return challenge.id.startsWith("daily-");
+}
+
+function loadDailyChallenges(): Challenge[] {
+  const defaults = defaultChallenges();
+
+  try {
+    const stored = window.localStorage.getItem(DAILY_CHALLENGES_STORAGE_KEY);
+    if (!stored) return defaults;
+
+    const saved = JSON.parse(stored) as { date?: unknown; challenges?: unknown };
+    if (saved.date !== localDateKey() || !Array.isArray(saved.challenges)) return defaults;
+
+    const savedChallenges = new Map(
+      saved.challenges
+        .filter(
+          (challenge): challenge is Challenge =>
+            typeof challenge === "object" &&
+            challenge !== null &&
+            typeof challenge.id === "string" &&
+            typeof challenge.progress === "number" &&
+            typeof challenge.complete === "boolean",
+        )
+        .map((challenge) => [challenge.id, challenge]),
+    );
+
+    return defaults.map((challenge) => {
+      if (!isDailyChallenge(challenge)) return challenge;
+      const savedChallenge = savedChallenges.get(challenge.id);
+      return savedChallenge
+        ? {
+            ...challenge,
+            progress: Math.max(0, Math.min(challenge.goal, savedChallenge.progress)),
+            complete: savedChallenge.complete,
+          }
+        : challenge;
+    });
+  } catch {
+    return defaults;
+  }
+}
+
+function saveDailyChallenges(challenges: Challenge[]) {
+  window.localStorage.setItem(
+    DAILY_CHALLENGES_STORAGE_KEY,
+    JSON.stringify({
+      date: localDateKey(),
+      challenges: challenges.filter(isDailyChallenge),
+    }),
+  );
 }
 
 const POWER_UPS: Record<
@@ -540,6 +602,8 @@ export function SlopeGame({
       let highScore = Number.isFinite(storedBest) ? storedBest : 0;
       let collectedThisRun = 0;
       let boostsUsed = false;
+      let challenges = loadDailyChallenges();
+      let dailyChallengeDate = localDateKey();
       let rareCounts = { gems: 0, keys: 0, tokens: 0 };
       let activeEnvironment = 0;
       const timers: Record<PowerUp, number> = { speed: 0, jump: 0, shield: 0 };
@@ -554,6 +618,7 @@ export function SlopeGame({
         window.localStorage.setItem("slope-highscore", String(highScore));
       }
       saveHighScore();
+      setGameState((s) => ({ ...s, challenges }));
 
       function flash(msg: string) {
         messageTimer = 1.2;
@@ -648,7 +713,11 @@ export function SlopeGame({
         isPlaying = false;
         const finalScore = Math.floor(score);
         setGameState((state) => {
-          const challenges = state.challenges.map((challenge) => {
+          if (dailyChallengeDate !== localDateKey()) {
+            challenges = loadDailyChallenges();
+            dailyChallengeDate = localDateKey();
+          }
+          challenges = challenges.map((challenge) => {
             const progress =
               challenge.id === "daily-distance"
                 ? Math.max(challenge.progress, finalScore)
@@ -661,6 +730,7 @@ export function SlopeGame({
             if (complete && !challenge.complete) coinCount += challenge.reward;
             return { ...challenge, progress, complete };
           });
+          saveDailyChallenges(challenges);
           saveCoins();
           return { ...state, coins: coinCount, challenges };
         });
@@ -727,7 +797,7 @@ export function SlopeGame({
           newBest: false,
           weeklyReward: 0,
           environment: ENVIRONMENTS[0].name,
-          challenges: gameState.challenges,
+          challenges,
           rares: rareCounts,
           timers: { speed: 0, jump: 0, shield: 0 },
         });
@@ -1294,6 +1364,9 @@ export function SlopeGame({
                 ))}
               </div>
               <p className="mt-3 text-xs text-white/50">
+                Daily objectives reset at local midnight and can be rewarded once per day.
+              </p>
+              <p className="mt-1 text-xs text-white/50">
                 Rare skins: 💎 {gameState.rares.gems} gems · 🗝 {gameState.rares.keys} keys · ✦{" "}
                 {gameState.rares.tokens} mystery tokens
               </p>
