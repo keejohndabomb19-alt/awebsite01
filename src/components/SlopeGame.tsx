@@ -1208,10 +1208,16 @@ export function SlopeGame({
               /{ENVIRONMENTS.length} environments
             </p>
           </div>
-          <div className="rounded-lg bg-black/40 px-4 py-2 text-center backdrop-blur-sm">
-            <p className="text-xs uppercase tracking-widest text-yellow-400">Coins</p>
-            <p className="font-mono text-3xl font-bold text-yellow-300">{gameState.coins}</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShopOpen(true)}
+            className="pointer-events-auto rounded-lg bg-black/40 px-4 py-2 text-center backdrop-blur-sm transition hover:bg-yellow-400/15"
+          >
+            <p className="text-xs uppercase tracking-widest text-yellow-400">Coins · Shop</p>
+            <p className="font-mono text-3xl font-bold text-yellow-300">
+              {gameState.coins.toLocaleString()}
+            </p>
+          </button>
           <div className="rounded-lg bg-black/40 px-4 py-2 backdrop-blur-sm">
             <p className="text-xs uppercase tracking-widest text-cyan-400">Speed</p>
             <p className="font-mono text-3xl font-bold text-white">
@@ -1419,6 +1425,14 @@ export function SlopeGame({
             <div className="mb-6">
               <Leaderboard />
             </div>
+            <button
+              type="button"
+              onClick={() => setShopOpen(true)}
+              className="mb-4 rounded-full border border-yellow-400/60 bg-yellow-400/10 px-6 py-2 font-bold text-yellow-300 transition hover:bg-yellow-400/20"
+            >
+              Skin shop
+            </button>
+            <br />
 
             <button
               onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }))}
