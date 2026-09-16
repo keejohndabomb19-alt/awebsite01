@@ -90,7 +90,7 @@ export const SKINS: SkinConfig[] = [
   {
     id: "chrome",
     name: "Chrome Pill",
-    description: "A mirror-polished capsule built for speed.",
+    description: "A mirror-polished capsule with glowing drive collars and a reactor viewport.",
     price: 1500,
     coinMultiplier: 6,
     shape: "capsule",
@@ -119,7 +119,7 @@ export const SKINS: SkinConfig[] = [
   {
     id: "solar",
     name: "Solar Flare",
-    description: "A golden star-core that leaves a warm glow in its wake.",
+    description: "A faceted golden star-core ringed by a blazing corona and eight solar rays.",
     price: 2000,
     coinMultiplier: 7,
     shape: "sphere",
@@ -133,7 +133,8 @@ export const SKINS: SkinConfig[] = [
   {
     id: "amethyst",
     name: "Amethyst Shard",
-    description: "A sharp violet crystal cut from a midnight geode.",
+    description:
+      "A sharp violet crystal with luminous inner facets and a crown of floating shards.",
     price: 3000,
     coinMultiplier: 8,
     shape: "octa",
@@ -147,7 +148,8 @@ export const SKINS: SkinConfig[] = [
   {
     id: "circuit",
     name: "Circuit Cube",
-    description: "A cobalt cube alive with electric green pathways.",
+    description:
+      "A cobalt cube fitted with raised neon traces, endpoint pads, and a front microchip.",
     price: 4000,
     coinMultiplier: 9,
     shape: "box",
@@ -161,7 +163,7 @@ export const SKINS: SkinConfig[] = [
   {
     id: "rose",
     name: "Rose Quartz",
-    description: "A soft pink gem with a frosted, luminous finish.",
+    description: "A layered rose gem with a glowing heart, crisp facet lines, and orbiting bands.",
     price: 5000,
     coinMultiplier: 10,
     shape: "dodeca",
