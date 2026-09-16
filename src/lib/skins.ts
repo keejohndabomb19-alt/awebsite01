@@ -1,4 +1,4 @@
-export type SkinShape = "sphere" | "torus" | "icosa" | "box" | "dodeca" | "capsule";
+export type SkinShape = "sphere" | "torus" | "icosa" | "box" | "dodeca" | "capsule" | "octa";
 
 export interface SkinConfig {
   id: string;
@@ -115,6 +115,62 @@ export const SKINS: SkinConfig[] = [
     roughness: 0.28,
     metalness: 0.7,
     swatch: "#dc0714",
+  },
+  {
+    id: "solar",
+    name: "Solar Flare",
+    description: "A golden star-core that leaves a warm glow in its wake.",
+    price: 160,
+    coinMultiplier: 7,
+    shape: "sphere",
+    color: 0xffb21a,
+    emissive: 0xff4d00,
+    emissiveIntensity: 1.25,
+    roughness: 0.22,
+    metalness: 0.7,
+    swatch: "#ffb21a",
+  },
+  {
+    id: "amethyst",
+    name: "Amethyst Shard",
+    description: "A sharp violet crystal cut from a midnight geode.",
+    price: 180,
+    coinMultiplier: 8,
+    shape: "octa",
+    color: 0xa96cff,
+    emissive: 0x4b167f,
+    emissiveIntensity: 0.85,
+    roughness: 0.12,
+    metalness: 0.82,
+    swatch: "#a96cff",
+  },
+  {
+    id: "circuit",
+    name: "Circuit Cube",
+    description: "A cobalt cube alive with electric green pathways.",
+    price: 210,
+    coinMultiplier: 9,
+    shape: "box",
+    color: 0x1955cc,
+    emissive: 0x00aa88,
+    emissiveIntensity: 0.65,
+    roughness: 0.2,
+    metalness: 0.88,
+    swatch: "#31e6bb",
+  },
+  {
+    id: "rose",
+    name: "Rose Quartz",
+    description: "A soft pink gem with a frosted, luminous finish.",
+    price: 240,
+    coinMultiplier: 10,
+    shape: "dodeca",
+    color: 0xff9bc8,
+    emissive: 0x8a2458,
+    emissiveIntensity: 0.72,
+    roughness: 0.16,
+    metalness: 0.65,
+    swatch: "#ff9bc8",
   },
 ];
 

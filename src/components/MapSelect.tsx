@@ -33,17 +33,14 @@ export function MapSelect({
               }`}
             >
               <div className="mb-2 flex items-center gap-3">
-                <span
-                  className="h-4 w-4 rounded-full"
-                  style={{ backgroundColor: m.swatch }}
-                />
+                <span className="h-4 w-4 rounded-full" style={{ backgroundColor: m.swatch }} />
                 <span className="text-lg font-bold" style={{ color: m.swatch }}>
                   {m.name}
                 </span>
               </div>
               <p className="text-sm text-white/70">{m.tagline}</p>
               <p className="mt-2 font-mono text-xs text-white/50">
-                Start speed {m.baseSpeed} • {m.id === "void" ? "Hard" : m.id === "ice" ? "Tricky" : m.id === "canyon" ? "Relaxed" : "Balanced"}
+                Start speed {m.baseSpeed} • {m.difficulty}
               </p>
             </button>
           ))}
