@@ -20,13 +20,11 @@ interface GameState {
   newBest: boolean;
   timers: { speed: number; jump: number; shield: number };
   weeklyReward: number;
-  environment: string;
   challenges: Challenge[];
   rares: { gems: number; keys: number; tokens: number };
 }
 
 type BlockType = "crash" | "slow" | "boost" | "bounce";
-type HazardType = "spinner" | "hammer" | "wall" | "platform" | "boss";
 type RareType = "gem" | "key" | "token";
 type Challenge = {
   id: string;
@@ -39,16 +37,6 @@ type Challenge = {
 type PowerUp = "speed" | "jump" | "shield";
 
 const DAILY_CHALLENGES_STORAGE_KEY = "slope-daily-challenges";
-
-const ENVIRONMENTS = [
-  { name: "Volcano", bg: 0x260807, track: 0x260c0a, accent: 0xff5438 },
-  { name: "Ice", bg: 0x081826, track: 0x16323f, accent: 0xbfe9ff },
-  { name: "City", bg: 0x07122e, track: 0x0b1734, accent: 0x50a7ff },
-  { name: "Space", bg: 0x08051c, track: 0x15102b, accent: 0xc04dff },
-  { name: "Underwater", bg: 0x05202a, track: 0x063542, accent: 0x34e6d0 },
-  { name: "Cyberpunk", bg: 0x16071f, track: 0x25102e, accent: 0xff3cac },
-] as const;
-const ENVIRONMENT_DISTANCE = 2000;
 
 function defaultChallenges(): Challenge[] {
   return [
@@ -200,7 +188,6 @@ export function SlopeGame({
     newBest: false,
     timers: { speed: 0, jump: 0, shield: 0 },
     weeklyReward: 0,
-    environment: ENVIRONMENTS[0].name,
     challenges: defaultChallenges(),
     rares: { gems: 0, keys: 0, tokens: 0 },
   });
@@ -219,8 +206,8 @@ export function SlopeGame({
       if (!container) return;
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(ENVIRONMENTS[0].bg);
-      scene.fog = new THREE.Fog(ENVIRONMENTS[0].bg, 25, 130);
+      scene.background = new THREE.Color(map.bg);
+      scene.fog = new THREE.Fog(map.bg, map.fog[0], map.fog[1]);
 
       const camera = new THREE.PerspectiveCamera(
         62,
@@ -284,16 +271,16 @@ export function SlopeGame({
         d * map.slope.drop;
 
       const trackMaterial = new THREE.MeshStandardMaterial({
-        color: ENVIRONMENTS[0].track,
+        color: map.track,
         roughness: 0.6,
         metalness: 0.3,
       });
       const edgeMaterial = new THREE.MeshStandardMaterial({
-        color: ENVIRONMENTS[0].accent,
-        emissive: ENVIRONMENTS[0].accent,
+        color: map.accent,
+        emissive: map.accent,
         emissiveIntensity: 0.8,
       });
-      const lineMaterial = new THREE.MeshBasicMaterial({ color: ENVIRONMENTS[0].accent });
+      const lineMaterial = new THREE.MeshBasicMaterial({ color: map.accent });
 
       const blockStyles: Record<BlockType, { color: number; emissive: number; label: string }> = {
         crash: { color: 0xff2244, emissive: 0xaa0022, label: "Crash" },
@@ -349,15 +336,6 @@ export function SlopeGame({
         d: number;
         lateral: number;
       }
-      interface Hazard {
-        group: THREE.Group;
-        d: number;
-        lateral: number;
-        width: number;
-        type: HazardType;
-        phase: number;
-        active: boolean;
-      }
       interface Rare {
         mesh: THREE.Mesh;
         d: number;
@@ -377,22 +355,7 @@ export function SlopeGame({
       const segments: Seg[] = [];
       const blocks: Block[] = [];
       const coins: Coin[] = [];
-      const hazards: Hazard[] = [];
       const rares: Rare[] = [];
-      const hazardMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff315a,
-        emissive: 0x7b1028,
-        emissiveIntensity: 0.8,
-        metalness: 0.75,
-        roughness: 0.25,
-      });
-      const bossMaterial = new THREE.MeshStandardMaterial({
-        color: 0x8d1cff,
-        emissive: 0x5d00a8,
-        emissiveIntensity: 1,
-        metalness: 0.8,
-        roughness: 0.2,
-      });
       const rareMaterials: Record<RareType, THREE.MeshStandardMaterial> = {
         gem: new THREE.MeshStandardMaterial({
           color: 0x2dffe6,
@@ -477,60 +440,6 @@ export function SlopeGame({
           }
         }
 
-        // Animated dodge hazards: spinning bars, swinging hammers, moving walls and rotating platforms.
-        if (d > 80 && d % 36 === 0 && Math.random() > 0.25) {
-          const types: HazardType[] = ["spinner", "hammer", "wall", "platform"];
-          const type = types[Math.floor(Math.random() * types.length)]!;
-          const group = new THREE.Group();
-          const material = hazardMaterial;
-          if (type === "spinner" || type === "platform") {
-            const bar = new THREE.Mesh(
-              new THREE.BoxGeometry(type === "spinner" ? 7.8 : 4.2, 0.32, 0.45),
-              material,
-            );
-            bar.position.y = type === "spinner" ? 0.85 : 0.45;
-            group.add(bar);
-            const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.8, 16), material);
-            hub.rotation.x = Math.PI / 2;
-            hub.position.y = bar.position.y;
-            group.add(hub);
-          } else if (type === "hammer") {
-            const arm = new THREE.Mesh(new THREE.BoxGeometry(0.25, 3.5, 0.25), material);
-            arm.position.y = 2.2;
-            group.add(arm);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.9, 0.8), material);
-            head.position.y = 0.65;
-            group.add(head);
-          } else {
-            const wall = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.3, 0.5), material);
-            wall.position.y = 1.15;
-            group.add(wall);
-          }
-          scene.add(group);
-          hazards.push({
-            group,
-            d,
-            lateral: type === "wall" ? 0 : (Math.random() - 0.5) * 3,
-            width: type === "wall" ? 1.6 : 1.1,
-            type,
-            phase: Math.random() * Math.PI * 2,
-            active: true,
-          });
-        }
-        // Boss gates demand a full-lane dodge every few thousand metres.
-        if (d > 0 && d % 2000 === 0) {
-          const group = new THREE.Group();
-          const core = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.45, 16, 32), bossMaterial);
-          core.rotation.x = Math.PI / 2;
-          core.position.y = 2.4;
-          group.add(core);
-          const beam = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.45, 0.7), bossMaterial);
-          beam.position.y = 1.1;
-          group.add(beam);
-          scene.add(group);
-          hazards.push({ group, d, lateral: 0, width: 3.8, type: "boss", phase: 0, active: true });
-        }
-
         // Rare collectibles are intentionally sparse and unlock skin currency.
         if (d > 160 && d % 120 === 0 && Math.random() > 0.68) {
           const rareTypes: RareType[] = ["gem", "key", "token"];
@@ -605,7 +514,6 @@ export function SlopeGame({
       let challenges = loadDailyChallenges();
       let dailyChallengeDate = localDateKey();
       let rareCounts = { gems: 0, keys: 0, tokens: 0 };
-      let activeEnvironment = 0;
       const timers: Record<PowerUp, number> = { speed: 0, jump: 0, shield: 0 };
 
       function saveCoins() {
@@ -771,17 +679,14 @@ export function SlopeGame({
         segments.forEach((s) => scene.remove(s.group));
         blocks.forEach((b) => scene.remove(b.mesh));
         coins.forEach((c) => scene.remove(c.mesh));
-        hazards.forEach((h) => scene.remove(h.group));
         rares.forEach((r) => scene.remove(r.mesh));
         segments.length = 0;
         blocks.length = 0;
         coins.length = 0;
-        hazards.length = 0;
         rares.length = 0;
         collectedThisRun = 0;
         boostsUsed = false;
         rareCounts = { gems: 0, keys: 0, tokens: 0 };
-        activeEnvironment = 0;
         buildTrack();
 
         isGameOver = false;
@@ -796,7 +701,6 @@ export function SlopeGame({
           highScore,
           newBest: false,
           weeklyReward: 0,
-          environment: ENVIRONMENTS[0].name,
           challenges,
           rares: rareCounts,
           timers: { speed: 0, jump: 0, shield: 0 },
@@ -860,33 +764,11 @@ export function SlopeGame({
               coins.splice(i, 1);
             }
           }
-          for (let i = hazards.length - 1; i >= 0; i--) {
-            if (hazards[i]!.d - distance < -12) {
-              scene.remove(hazards[i]!.group);
-              hazards.splice(i, 1);
-            }
-          }
           for (let i = rares.length - 1; i >= 0; i--) {
             if (rares[i]!.d - distance < -12) {
               scene.remove(rares[i]!.mesh);
               rares.splice(i, 1);
             }
-          }
-
-          const nextEnvironment = Math.min(
-            ENVIRONMENTS.length - 1,
-            Math.floor(distance / ENVIRONMENT_DISTANCE),
-          );
-          if (nextEnvironment !== activeEnvironment) {
-            activeEnvironment = nextEnvironment;
-            const environment = ENVIRONMENTS[activeEnvironment]!;
-            scene.background = new THREE.Color(environment.bg);
-            scene.fog = new THREE.Fog(environment.bg, 25, 130);
-            trackMaterial.color.setHex(environment.track);
-            edgeMaterial.color.setHex(environment.accent);
-            edgeMaterial.emissive.setHex(environment.accent);
-            lineMaterial.color.setHex(environment.accent);
-            flash(`${environment.name} zone!`);
           }
 
           // Steering
@@ -987,39 +869,6 @@ export function SlopeGame({
             }
           }
 
-          // Moving obstacles are lethal unless a shield is active. Their animation changes each frame.
-          for (const hazard of hazards) {
-            if (!hazard.active) continue;
-            const dz = hazard.d - distance;
-            if (Math.abs(dz) > 0.8) continue;
-            const obstacleLateral =
-              hazard.type === "wall" ? Math.sin(now * 0.002 + hazard.phase) * 2.4 : hazard.lateral;
-            if (hazard.type === "boss" && Math.abs(lateralPos) < hazard.width && ballHeight < 1.8) {
-              if (timers.shield > 0) {
-                hazard.active = false;
-                scene.remove(hazard.group);
-                flash("Boss shield-break!");
-              } else {
-                flash("Boss barrier!");
-                gameOver();
-                break;
-              }
-            } else if (
-              hazard.type !== "boss" &&
-              Math.abs(lateralPos - obstacleLateral) < hazard.width &&
-              ballHeight < 1.15
-            ) {
-              if (timers.shield > 0) {
-                hazard.active = false;
-                scene.remove(hazard.group);
-                flash("Hazard smashed!");
-              } else {
-                gameOver();
-                break;
-              }
-            }
-          }
-
           if (messageTimer > 0) {
             messageTimer -= delta;
             if (messageTimer <= 0) setGameState((s) => ({ ...s, message: "" }));
@@ -1031,7 +880,6 @@ export function SlopeGame({
             speed: Math.floor(currentSpeed * 2),
             coins: coinCount,
             highScore,
-            environment: ENVIRONMENTS[activeEnvironment].name,
             rares: rareCounts,
             timers: { ...timers },
           }));
@@ -1060,24 +908,6 @@ export function SlopeGame({
           );
           rare.mesh.rotation.y += delta * 2.5;
         }
-        for (const hazard of hazards) {
-          const lateral =
-            hazard.type === "wall" ? Math.sin(now * 0.002 + hazard.phase) * 2.4 : hazard.lateral;
-          hazard.group.position.set(
-            pathX(hazard.d) + lateral,
-            pathY(hazard.d),
-            -(hazard.d - distance),
-          );
-          if (hazard.type === "spinner") hazard.group.rotation.z = now * 0.006 + hazard.phase;
-          if (hazard.type === "platform") {
-            hazard.group.rotation.z = now * 0.004 + hazard.phase;
-            hazard.group.position.y += 0.4 + Math.sin(now * 0.003 + hazard.phase) * 0.35;
-          }
-          if (hazard.type === "hammer")
-            hazard.group.rotation.z = Math.sin(now * 0.003 + hazard.phase) * 0.9;
-          if (hazard.type === "boss") hazard.group.rotation.y = now * 0.003;
-        }
-
         const ballWorldX = pathX(distance) + lateralPos;
         const ballWorldY = pathY(distance) + 0.5 + ballHeight;
         ball.position.set(ballWorldX, ballWorldY, 0);
@@ -1189,25 +1019,6 @@ export function SlopeGame({
               Best {gameState.highScore.toLocaleString()}
             </p>
           </div>
-          <div className="rounded-lg border border-white/10 bg-black/40 px-4 py-2 text-center backdrop-blur-sm">
-            <p
-              className="text-xs uppercase tracking-widest"
-              style={{
-                color: ENVIRONMENTS.find(
-                  (environment) => environment.name === gameState.environment,
-                )?.accent,
-              }}
-            >
-              Zone · {gameState.environment}
-            </p>
-            <p className="font-mono text-xs text-white/70">
-              {Math.min(
-                ENVIRONMENTS.length - 1,
-                Math.floor(gameState.score / ENVIRONMENT_DISTANCE),
-              ) + 1}
-              /{ENVIRONMENTS.length} environments
-            </p>
-          </div>
           <button
             type="button"
             onClick={() => setShopOpen(true)}
@@ -1281,7 +1092,7 @@ export function SlopeGame({
               SLOPE
             </h1>
             <p className="mb-4 text-lg" style={{ color: map.swatch }}>
-              Expedition route: Volcano → Ice → City → Space → Underwater → Cyberpunk
+              {map.name}
             </p>
             <p className="mb-4 text-xs text-white/50">
               Track style: {map.name} — {map.tagline}
@@ -1335,10 +1146,6 @@ export function SlopeGame({
               <div className="col-span-2 flex items-center gap-2 text-white/80">
                 <span className="h-3 w-3 rounded-full bg-[#2dffe6]" /> Gems, keys & tokens — rare
                 skin unlock collectibles
-              </div>
-              <div className="col-span-2 flex items-center gap-2 text-white/80">
-                <span className="h-3 w-3 rounded-sm bg-[#ff315a]" /> Spinners, hammers, moving walls
-                & platforms — dodge them all
               </div>
             </div>
             <div className="mx-auto mb-5 max-w-xl rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-4 text-left text-sm">
