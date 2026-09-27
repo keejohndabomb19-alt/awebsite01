@@ -43,6 +43,10 @@ export const getLeaderboard = createServerFn({ method: "GET" }).handler(
       .from("leaderboard")
       .select("player_id, name, best_distance")
       .order("best_distance", { ascending: false })
+      // Keep the ordering stable when players have the same best distance.
+      // Without a tie-breaker Postgres is free to return tied rows in a
+      // different order on each request, which makes the worldwide ranks jump.
+      .order("player_id", { ascending: true })
       .limit(20);
 
     if (error) {
